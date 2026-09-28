@@ -4,8 +4,8 @@
  */
 
 // SUPABASE CONFIGURATION (ISI DENGAN URL & KEY ANDA NANTI)
-const SUPABASE_URL = ''; // Contoh: 'https://xyz.supabase.co'
-const SUPABASE_KEY = ''; // Contoh: 'eyJhbGciOiJIUzI1Ni...'
+const SUPABASE_URL = 'https://fhfgzpirdkrtultezuak.supabase.co'; // Contoh: 'https://xyz.supabase.co'
+const SUPABASE_KEY = 'sb_publishable_jDwXpw__RnOOTMigAy_AnQ_KHPJvgHT'; // Contoh: 'eyJhbGciOiJIUzI1Ni...'
 let supabase = null;
 
 if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
@@ -33,16 +33,16 @@ var state = {
 };
 
 // INITIALIZATION ON DOM LOAD
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   var dateBadge = document.getElementById('current-date-badge');
-  if(dateBadge) {
+  if (dateBadge) {
     dateBadge.innerText = formatDateIndo(new Date());
   }
   checkStoredSession();
 });
 
 function formatDateIndo(date) {
-  var months = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Ags','Sep','Okt','Nov','Des'];
+  var months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des'];
   return date.getDate() + ' ' + months[date.getMonth()] + ' ' + date.getFullYear();
 }
 
@@ -53,7 +53,7 @@ function formatRupiah(amount) {
 // API BRIDGE FOR VERCEL DEPLOYMENT (SUPABASE OR MOCK)
 async function callApi(functionName) {
   var args = Array.prototype.slice.call(arguments, 1);
-  
+
   // Jika Supabase sudah dikonfigurasi, gunakan Supabase
   if (supabase) {
     try {
@@ -61,25 +61,25 @@ async function callApi(functionName) {
         const { data, error } = await supabase.from('users').select('*').eq('username', args[0]).eq('password_hash', args[1]).single();
         if (error || !data) return { success: false, message: 'Username atau password salah!' };
         return { success: true, user: data, message: 'Login berhasil!' };
-      } 
+      }
       else if (functionName === 'getProducts') {
         const { data, error } = await supabase.from('products').select('*');
         return data || [];
-      } 
+      }
       else if (functionName === 'getCategories') {
         const { data, error } = await supabase.from('categories').select('*');
         return data || [];
-      } 
+      }
       // Untuk dashboard dan transaksi bisa dikembangkan lebih lanjut dengan query SQL (RPC) di Supabase
-    } catch(err) {
+    } catch (err) {
       console.error("Supabase Error:", err);
     }
   }
 
   // FALLBACK KE MOCK API JIKA SUPABASE BELUM DISETTING
-  return new Promise(function(resolve, reject) {
+  return new Promise(function (resolve, reject) {
     console.log("[Mock API Executed]:", functionName, args);
-    setTimeout(function() {
+    setTimeout(function () {
       if (functionName === 'loginUser') {
         resolve({
           success: true,
@@ -98,13 +98,13 @@ async function callApi(functionName) {
       } else if (functionName === 'getDashboardStats') {
         resolve({
           sales_today: 450000, count_today: 12, sales_month: 8500000, count_month: 140,
-          total_piutang: 650000, low_stock_count: 2, 
+          total_piutang: 650000, low_stock_count: 2,
           low_stock_items: [
             { Product_Name: 'Minyak Goreng 1L', Min_Stock: 5, Stock: 2, Base_Unit: 'PCS' },
             { Product_Name: 'Gula 1Kg', Min_Stock: 10, Stock: 4, Base_Unit: 'PCS' }
           ],
-          chart_7days: { labels: ['Sen','Sel','Rab','Kam','Jum','Sab','Min'], values: [150,220,180,310,420,290,480] },
-          payment_distribution: { cash: 120, credit: 30 }, 
+          chart_7days: { labels: ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'], values: [150, 220, 180, 310, 420, 290, 480] },
+          payment_distribution: { cash: 120, credit: 30 },
           top_products: [
             { product_name: 'Aqua 600ml', total_qty: 45 },
             { product_name: 'Indomie Goreng', total_qty: 38 }
@@ -140,7 +140,7 @@ function checkStoredSession() {
       updateUserUI();
       loadAllMasterData();
       return;
-    } catch(e) {}
+    } catch (e) { }
   }
   document.getElementById('login-screen').style.display = 'flex';
 }
@@ -154,7 +154,7 @@ function handleLogin(e) {
   btn.innerHTML = 'Memproses...';
   btn.disabled = true;
 
-  callApi('loginUser', u, p).then(function(res) {
+  callApi('loginUser', u, p).then(function (res) {
     btn.innerHTML = 'Masuk Aplikasi';
     btn.disabled = false;
     if (res.success) {
@@ -189,17 +189,17 @@ function updateUserUI() {
 /* NAVIGATION & VIEWS */
 function switchView(viewId) {
   state.activeView = viewId;
-  
+
   // Highlight nav items
   var navItems = document.querySelectorAll('.nav-item');
-  navItems.forEach(function(item) {
+  navItems.forEach(function (item) {
     if (item.getAttribute('data-view') === viewId) item.classList.add('active');
     else item.classList.remove('active');
   });
 
   // Show selected panel
   var panels = document.querySelectorAll('.view-panel');
-  panels.forEach(function(panel) {
+  panels.forEach(function (panel) {
     if (panel.id === 'view-' + viewId) panel.classList.add('active');
     else panel.classList.remove('active');
   });
@@ -224,9 +224,9 @@ function switchView(viewId) {
   if (viewId === 'dashboard') loadDashboardStats();
   else if (viewId === 'kasir') renderPosProducts();
   else if (viewId === 'produk') renderProductTable();
-  
+
   // Close sidebar on mobile after clicking
-  if(window.innerWidth <= 768) {
+  if (window.innerWidth <= 768) {
     document.getElementById('sidebar').classList.remove('mobile-open');
   }
 }
@@ -240,7 +240,7 @@ function loadAllMasterData() {
   Promise.all([
     callApi('getProducts'),
     callApi('getCategories')
-  ]).then(function(results) {
+  ]).then(function (results) {
     state.products = results[0] || [];
     state.categories = results[1] || [];
     populateCategorySelects();
@@ -250,11 +250,11 @@ function loadAllMasterData() {
 
 function populateCategorySelects() {
   var selects = ['prod-cat', 'produk-filter-cat'];
-  selects.forEach(function(id) {
+  selects.forEach(function (id) {
     var el = document.getElementById(id);
     if (!el) return;
     var html = id === 'produk-filter-cat' ? '<option value="">Semua Kategori</option>' : '<option value="">Pilih Kategori</option>';
-    state.categories.forEach(function(c) {
+    state.categories.forEach(function (c) {
       html += '<option value="' + c.Category_ID + '">' + c.Category_Name + '</option>';
     });
     el.innerHTML = html;
@@ -264,7 +264,7 @@ function populateCategorySelects() {
   var pillContainer = document.getElementById('pos-category-pills');
   if (pillContainer) {
     var phtml = '<button class="btn btn-primary btn-sm active" onclick="filterPosCategory(\'ALL\', this)">Semua</button>';
-    state.categories.forEach(function(c) {
+    state.categories.forEach(function (c) {
       phtml += '<button class="btn btn-secondary btn-sm" onclick="filterPosCategory(\'' + c.Category_ID + '\', this)">' + c.Category_Name + '</button>';
     });
     pillContainer.innerHTML = phtml;
@@ -273,7 +273,7 @@ function populateCategorySelects() {
 
 /* DASHBOARD CONTROLLER */
 function loadDashboardStats() {
-  callApi('getDashboardStats').then(function(stats) {
+  callApi('getDashboardStats').then(function (stats) {
     document.getElementById('dash-sales-today').innerText = formatRupiah(stats.sales_today);
     document.getElementById('dash-count-today').innerText = stats.count_today + ' transaksi';
     document.getElementById('dash-sales-month').innerText = formatRupiah(stats.sales_month);
@@ -287,7 +287,7 @@ function loadDashboardStats() {
     var lowList = document.getElementById('dash-low-stock-list');
     if (stats.low_stock_items && stats.low_stock_items.length > 0) {
       var lhtml = '';
-      stats.low_stock_items.forEach(function(p) {
+      stats.low_stock_items.forEach(function (p) {
         lhtml += '<div class="list-box">' +
           '<div><div class="font-bold">' + p.Product_Name + '</div><div style="font-size:12px; color:var(--text-dim);">Min: ' + p.Min_Stock + '</div></div>' +
           '<div class="badge badge-danger">Sisa: ' + p.Stock + '</div>' +
@@ -302,9 +302,9 @@ function loadDashboardStats() {
     var topList = document.getElementById('dash-top-products-list');
     if (stats.top_products && stats.top_products.length > 0) {
       var thtml = '';
-      stats.top_products.forEach(function(tp, idx) {
+      stats.top_products.forEach(function (tp, idx) {
         thtml += '<div class="list-box" style="border-color: #000;">' +
-          '<div><span class="font-bold" style="margin-right:8px;">#' + (idx+1) + '</span><span class="font-bold">' + tp.product_name + '</span></div>' +
+          '<div><span class="font-bold" style="margin-right:8px;">#' + (idx + 1) + '</span><span class="font-bold">' + tp.product_name + '</span></div>' +
           '<div class="badge badge-success">' + tp.total_qty + ' terjual</div>' +
           '</div>';
       });
@@ -370,7 +370,7 @@ function renderPosProducts() {
 
   var q = (document.getElementById('pos-search').value || '').toLowerCase();
 
-  var filtered = state.products.filter(function(p) {
+  var filtered = state.products.filter(function (p) {
     if (state.posCategoryFilter !== 'ALL' && String(p.Category_ID) !== String(state.posCategoryFilter)) return false;
     if (q) {
       return (p.Product_Name || '').toLowerCase().indexOf(q) !== -1 || (p.Barcode || '').toLowerCase().indexOf(q) !== -1;
@@ -379,18 +379,18 @@ function renderPosProducts() {
   });
 
   var html = '';
-  filtered.forEach(function(p) {
+  filtered.forEach(function (p) {
     var stock = parseFloat(p.Stock) || 0;
     var isLow = stock <= (parseFloat(p.Min_Stock) || 5);
     html += '<div class="product-item-card" onclick="addToCart(\'' + p.Product_ID + '\')">' +
       '<div>' +
-        '<h4>' + p.Product_Name + '</h4>' +
-        '<div class="price">' + formatRupiah(p.Sell_Price) + '</div>' +
+      '<h4>' + p.Product_Name + '</h4>' +
+      '<div class="price">' + formatRupiah(p.Sell_Price) + '</div>' +
       '</div>' +
       '<div class="stock-tag">' +
-        '<span class="badge ' + (isLow ? 'badge-danger' : 'badge-success') + '">Stok: ' + stock + ' ' + p.Base_Unit + '</span>' +
+      '<span class="badge ' + (isLow ? 'badge-danger' : 'badge-success') + '">Stok: ' + stock + ' ' + p.Base_Unit + '</span>' +
       '</div>' +
-    '</div>';
+      '</div>';
   });
   grid.innerHTML = html || '<div style="grid-column: 1/-1; text-align: center; padding: 40px; font-weight:600;">Tidak ada produk.</div>';
 }
@@ -400,9 +400,9 @@ function filterPosProducts() { renderPosProducts(); }
 function filterPosCategory(catId, btnEl) {
   state.posCategoryFilter = catId;
   var btns = document.querySelectorAll('#pos-category-pills button');
-  btns.forEach(function(b) { 
-    b.classList.remove('active'); 
-    b.classList.replace('btn-primary', 'btn-secondary'); 
+  btns.forEach(function (b) {
+    b.classList.remove('active');
+    b.classList.replace('btn-primary', 'btn-secondary');
   });
   btnEl.classList.add('active');
   btnEl.classList.replace('btn-secondary', 'btn-primary');
@@ -410,10 +410,10 @@ function filterPosCategory(catId, btnEl) {
 }
 
 function addToCart(productId) {
-  var p = state.products.find(function(item) { return String(item.Product_ID) === String(productId); });
+  var p = state.products.find(function (item) { return String(item.Product_ID) === String(productId); });
   if (!p) return;
 
-  var existing = state.posCart.find(function(c) { return String(c.Product_ID) === String(productId); });
+  var existing = state.posCart.find(function (c) { return String(c.Product_ID) === String(productId); });
   if (existing) {
     existing.Qty += 1;
     existing.Subtotal = existing.Qty * existing.Sell_Price;
@@ -454,21 +454,21 @@ function renderPosCart() {
   }
 
   var html = '';
-  state.posCart.forEach(function(item, idx) {
+  state.posCart.forEach(function (item, idx) {
     html += '<div class="cart-item-row">' +
       '<div style="flex: 1;">' +
-        '<h5 style="font-size:15px; font-weight:800; margin-bottom:4px;">' + item.Product_Name + '</h5>' +
-        '<div style="font-size:13px; font-weight:600; color:var(--text-dim);">' + formatRupiah(item.Sell_Price) + '</div>' +
+      '<h5 style="font-size:15px; font-weight:800; margin-bottom:4px;">' + item.Product_Name + '</h5>' +
+      '<div style="font-size:13px; font-weight:600; color:var(--text-dim);">' + formatRupiah(item.Sell_Price) + '</div>' +
       '</div>' +
       '<div class="qty-controls" style="margin: 0 10px;">' +
-        '<button class="btn-qty" onclick="updateCartQty(' + idx + ', -1)">-</button>' +
-        '<span style="font-size: 14px; font-weight: 800; width: 28px; text-align: center;">' + item.Qty + '</span>' +
-        '<button class="btn-qty" onclick="updateCartQty(' + idx + ', 1)">+</button>' +
+      '<button class="btn-qty" onclick="updateCartQty(' + idx + ', -1)">-</button>' +
+      '<span style="font-size: 14px; font-weight: 800; width: 28px; text-align: center;">' + item.Qty + '</span>' +
+      '<button class="btn-qty" onclick="updateCartQty(' + idx + ', 1)">+</button>' +
       '</div>' +
       '<div style="text-align: right; min-width: 80px;">' +
-        '<div style="font-size: 14px; font-weight: 800;">' + formatRupiah(item.Subtotal) + '</div>' +
+      '<div style="font-size: 14px; font-weight: 800;">' + formatRupiah(item.Subtotal) + '</div>' +
       '</div>' +
-    '</div>';
+      '</div>';
   });
   list.innerHTML = html;
   calculatePosTotal();
@@ -476,7 +476,7 @@ function renderPosCart() {
 
 function calculatePosTotal() {
   var subtotal = 0;
-  state.posCart.forEach(function(item) { subtotal += item.Subtotal; });
+  state.posCart.forEach(function (item) { subtotal += item.Subtotal; });
   document.getElementById('pos-subtotal-text').innerText = formatRupiah(subtotal);
 
   var disc = parseFloat(document.getElementById('pos-discount-total').value) || 0;
@@ -501,10 +501,10 @@ function submitPosSale() {
     return;
   }
   showToast('info', 'Memproses...');
-  
+
   // Hitung total untuk struk
   var subtotal = 0;
-  state.posCart.forEach(function(item) { subtotal += item.Subtotal; });
+  state.posCart.forEach(function (item) { subtotal += item.Subtotal; });
   var disc = parseFloat(document.getElementById('pos-discount-total').value) || 0;
   var grand = subtotal - disc;
   if (grand < 0) grand = 0;
@@ -512,9 +512,9 @@ function submitPosSale() {
   var change = cash > grand ? cash - grand : 0;
   var method = document.getElementById('pos-payment-method').value;
 
-  callApi('processSale', state.posCart).then(function(res) {
+  callApi('processSale', state.posCart).then(function (res) {
     showToast('success', res.message);
-    
+
     // Generate Receipt Preview
     var receiptHtml = `
       <div style="font-family: monospace; font-size: 14px; color: #000; text-align: center;">
@@ -527,8 +527,8 @@ function submitPosSale() {
         <hr style="border: 1px dashed #000; margin: 10px 0;">
         <table style="width: 100%; text-align: left; font-size:13px; font-family: monospace;">
     `;
-    
-    state.posCart.forEach(function(item) {
+
+    state.posCart.forEach(function (item) {
       receiptHtml += `
         <tr>
           <td colspan="2">${item.Product_Name}</td>
@@ -580,14 +580,14 @@ function renderProductTable() {
   if (!tbody) return;
 
   var q = (document.getElementById('produk-search').value || '').toLowerCase();
-  
-  var filtered = state.products.filter(function(p) {
+
+  var filtered = state.products.filter(function (p) {
     if (q) return (p.Product_Name || '').toLowerCase().indexOf(q) !== -1;
     return true;
   });
 
   var html = '';
-  filtered.forEach(function(p) {
+  filtered.forEach(function (p) {
     html += '<tr>' +
       '<td>' + p.Product_ID + '</td>' +
       '<td><strong>' + p.Product_Name + '</strong></td>' +
@@ -596,10 +596,10 @@ function renderProductTable() {
       '<td style="color: var(--success); font-weight: 800;">' + formatRupiah(p.Sell_Price) + '</td>' +
       '<td><span class="badge badge-primary">' + p.Stock + '</span></td>' +
       '<td>' +
-        '<button class="btn btn-secondary btn-sm"><i class="ri-edit-line"></i></button> ' +
-        '<button class="btn btn-danger btn-sm"><i class="ri-delete-bin-line"></i></button>' +
+      '<button class="btn btn-secondary btn-sm"><i class="ri-edit-line"></i></button> ' +
+      '<button class="btn btn-danger btn-sm"><i class="ri-delete-bin-line"></i></button>' +
       '</td>' +
-    '</tr>';
+      '</tr>';
   });
   tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding: 20px;">Kosong</td></tr>';
 }
@@ -607,11 +607,11 @@ function renderProductTable() {
 /* MODALS & TOASTS */
 function openModal(id) {
   var el = document.getElementById(id);
-  if(el) el.classList.add('active');
+  if (el) el.classList.add('active');
 }
 function closeModal(id) {
   var el = document.getElementById(id);
-  if(el) el.classList.remove('active');
+  if (el) el.classList.remove('active');
 }
 function openProductModal() { openModal('modal-product'); }
 function openCategoryModal() { showToast('info', 'Fitur kategori dibuka.'); }
@@ -624,13 +624,13 @@ function openReturnModal() { showToast('info', 'Fitur retur dibuka.'); }
 
 function showToast(type, message) {
   var cont = document.getElementById('toast-container');
-  if(!cont) return;
+  if (!cont) return;
   var div = document.createElement('div');
   div.className = 'toast toast-' + type;
   var icon = type === 'success' ? 'ri-check-line' : type === 'error' ? 'ri-error-warning-line' : 'ri-information-line';
   div.innerHTML = '<i class="' + icon + '"></i> ' + message;
   cont.appendChild(div);
-  setTimeout(function() { div.remove(); }, 3500);
+  setTimeout(function () { div.remove(); }, 3500);
 }
 
 // Dummy prevent forms
@@ -656,7 +656,7 @@ function sendReceiptWhatsapp() {
 function downloadReceiptImage() {
   showToast('info', 'Menyiapkan gambar...');
   var element = document.getElementById('receipt-preview-area');
-  html2canvas(element, { scale: 2 }).then(function(canvas) {
+  html2canvas(element, { scale: 2 }).then(function (canvas) {
     var link = document.createElement('a');
     link.download = 'Struk_TokoKita_' + new Date().getTime() + '.png';
     link.href = canvas.toDataURL('image/png');
@@ -669,30 +669,30 @@ function downloadAllReportsPDF() {
   try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
-    
+
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
     doc.text("Laporan Keseluruhan - " + state.settings.store_name, 14, 22);
-    
+
     doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
     doc.text("Tanggal Cetak: " + new Date().toLocaleString('id-ID'), 14, 30);
-    
+
     doc.setFont("helvetica", "bold");
     doc.text("Ringkasan Dashboard:", 14, 45);
     doc.setFont("helvetica", "normal");
     doc.text("Total Penjualan Hari Ini: " + document.getElementById('dash-sales-today').innerText, 14, 52);
     doc.text("Total Piutang Belum Lunas: " + document.getElementById('dash-total-piutang').innerText, 14, 59);
-    
+
     doc.setFont("helvetica", "bold");
     doc.text("Peringatan Stok Menipis:", 14, 75);
     doc.setFont("helvetica", "normal");
     doc.text("- Minyak Goreng 1L (Sisa 2 PCS)", 14, 82);
     doc.text("- Gula 1Kg (Sisa 4 PCS)", 14, 89);
-    
+
     doc.save("Laporan_Keseluruhan_TokoKita.pdf");
     showToast('success', 'PDF berhasil diunduh!');
-  } catch(e) {
+  } catch (e) {
     console.error(e);
     showToast('error', 'Gagal membuat PDF.');
   }
