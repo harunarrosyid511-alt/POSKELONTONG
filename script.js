@@ -5,7 +5,7 @@
 
 // SUPABASE CONFIGURATION (ISI DENGAN URL & KEY ANDA NANTI)
 const SUPABASE_URL = 'https://fhfgzpirdkrtultezuak.supabase.co'; // Contoh: 'https://xyz.supabase.co'
-const SUPABASE_KEY = 'sb_publishable_jDwXpw__RnOOTMigAy_AnQ_KHPJvgHT'; // Contoh: 'eyJhbGciOiJIUzI1Ni...'
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZoZmd6cGlyZGtydHVsdGV6dWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTU2MDQsImV4cCI6MjEwNjE5MTYwNH0.Gv_aRkRMJsFpxrR1-wKdC7pKMPuQMi88PYQB6d6IbeY'; // Contoh: 'eyJhbGciOiJIUzI1Ni...'
 let supabase = null;
 
 if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
@@ -63,13 +63,13 @@ async function callApi(functionName) {
           password: args[1]
         });
         if (error) {
-           console.error("Auth Error:", error);
-           return { success: false, message: 'Email atau password salah!' };
+          console.error("Auth Error:", error);
+          return { success: false, message: 'Email atau password salah!' };
         }
-        return { 
-           success: true, 
-           user: { user_id: data.user.id, username: data.user.email, full_name: 'Administrator', role: 'admin' }, 
-           message: 'Login berhasil!' 
+        return {
+          success: true,
+          user: { user_id: data.user.id, username: data.user.email, full_name: 'Administrator', role: 'admin' },
+          message: 'Login berhasil!'
         };
       }
       else if (functionName === 'getProducts') {
