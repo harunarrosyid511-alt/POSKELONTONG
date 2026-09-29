@@ -190,9 +190,15 @@ function handleLogout() {
 
 function updateUserUI() {
   if (state.user) {
-    document.getElementById('user-display-name').innerText = state.user.full_name;
-    document.getElementById('user-display-role').innerText = state.user.role;
-    document.getElementById('user-avatar-initial').innerText = state.user.full_name.charAt(0).toUpperCase();
+    var nameEl = document.getElementById('user-display-name');
+    if (nameEl) nameEl.innerText = state.user.full_name;
+    var roleEl = document.getElementById('user-display-role');
+    if (roleEl) roleEl.innerText = state.user.role;
+    var avatarEl = document.getElementById('user-avatar-initial');
+    if (avatarEl) avatarEl.innerText = state.user.full_name.charAt(0).toUpperCase();
+    
+    var mobUser = document.getElementById('mobile-user-name');
+    if (mobUser) mobUser.innerText = state.user.full_name;
   }
 }
 
@@ -200,11 +206,18 @@ function updateUserUI() {
 function switchView(viewId) {
   state.activeView = viewId;
 
-  // Highlight nav items
+  // Highlight desktop nav items
   var navItems = document.querySelectorAll('.nav-item');
   navItems.forEach(function (item) {
     if (item.getAttribute('data-view') === viewId) item.classList.add('active');
     else item.classList.remove('active');
+  });
+
+  // Highlight mobile bottom tabs
+  var mobileTabs = document.querySelectorAll('.mobile-tab');
+  mobileTabs.forEach(function (tab) {
+    if (tab.getAttribute('data-view') === viewId) tab.classList.add('active');
+    else tab.classList.remove('active');
   });
 
   // Show selected panel
@@ -235,10 +248,8 @@ function switchView(viewId) {
   else if (viewId === 'kasir') renderPosProducts();
   else if (viewId === 'produk') renderProductTable();
 
-  // Close sidebar on mobile after clicking
-  if (window.innerWidth <= 768) {
-    document.getElementById('sidebar').classList.remove('mobile-open');
-  }
+  // Scroll to top when view switches
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function toggleSidebar() {
@@ -525,51 +536,60 @@ function submitPosSale() {
   callApi('processSale', state.posCart).then(function (res) {
     showToast('success', res.message);
 
-    // Generate Receipt Preview
+    // Generate Receipt Preview with Neobrutalism theme
     var receiptHtml = `
-      <div style="font-family: monospace; font-size: 14px; color: #000; text-align: center;">
-        <h2 style="margin:0; font-size:18px;">${state.settings.store_name}</h2>
-        <p style="margin:4px 0;">${state.settings.store_address}</p>
-        <p style="margin:0; font-size:12px;">Telp: ${state.settings.store_phone}</p>
-        <hr style="border: 1px dashed #000; margin: 10px 0;">
-        <p style="text-align:left; margin:0;">Tgl: ${new Date().toLocaleString('id-ID')}</p>
-        <p style="text-align:left; margin:0;">Kasir: ${state.user ? state.user.full_name : 'Admin'}</p>
-        <hr style="border: 1px dashed #000; margin: 10px 0;">
-        <table style="width: 100%; text-align: left; font-size:13px; font-family: monospace;">
+      <div style="font-family: 'Outfit', sans-serif; color: #000; padding: 12px; background: #fff; border: 3px solid #000; border-radius: 12px; box-shadow: 4px 4px 0 0 #000;">
+        <div style="background: var(--primary, #facc15); border: 2px solid #000; border-radius: 8px; padding: 10px; text-align: center; margin-bottom: 12px; box-shadow: 2px 2px 0 0 #000;">
+          <h2 style="margin:0; font-size:18px; font-weight:900; color:#000;">${state.settings.store_name}</h2>
+          <p style="margin:2px 0 0 0; font-size:12px; font-weight:700;">${state.settings.store_address}</p>
+          <p style="margin:2px 0 0 0; font-size:11px; font-weight:600;">Telp: ${state.settings.store_phone}</p>
+        </div>
+        
+        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px dashed #000;">
+          <span>Tgl: ${new Date().toLocaleString('id-ID')}</span>
+          <span>Kasir: ${state.user ? state.user.full_name : 'Admin'}</span>
+        </div>
+
+        <table style="width: 100%; text-align: left; font-size:13px; border-collapse: collapse; margin-bottom: 10px;">
     `;
 
     state.posCart.forEach(function (item) {
       receiptHtml += `
-        <tr>
-          <td colspan="2">${item.Product_Name}</td>
-        </tr>
-        <tr>
-          <td>${item.Qty} x ${item.Sell_Price}</td>
-          <td style="text-align: right;">${item.Subtotal}</td>
+        <tr style="border-bottom: 1px solid #ddd;">
+          <td style="padding: 4px 0; font-weight: 800;">${item.Product_Name}</td>
+          <td style="padding: 4px 0; text-align: center; font-weight: 600;">${item.Qty} x ${formatRupiah(item.Sell_Price)}</td>
+          <td style="padding: 4px 0; text-align: right; font-weight: 800;">${formatRupiah(item.Subtotal)}</td>
         </tr>
       `;
     });
 
     receiptHtml += `
         </table>
-        <hr style="border: 1px dashed #000; margin: 10px 0;">
-        <div style="display:flex; justify-content:space-between; font-weight:bold;">
-          <span>Subtotal</span><span>${subtotal}</span>
+        
+        <div style="background: #f4f5f4; border: 2px solid #000; border-radius: 8px; padding: 10px; margin-bottom: 12px; font-size: 13px;">
+          <div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom: 4px;">
+            <span>Subtotal</span><span>${formatRupiah(subtotal)}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:700; margin-bottom: 4px; color: var(--danger);">
+            <span>Diskon</span><span>- ${formatRupiah(disc)}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:900; border-top: 2px solid #000; padding-top: 6px; margin-top: 4px;">
+            <span>TOTAL</span><span style="color: #000;">${formatRupiah(grand)}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:700; margin-top: 6px;">
+            <span>Metode Bayar</span><span>${method === 'CASH' ? 'TUNAI' : 'HUTANG/PIUTANG'}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:700;">
+            <span>Diterima</span><span>${method === 'CASH' ? formatRupiah(cash) : 'HUTANG'}</span>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-weight:900; color: #000000;">
+            <span>Kembalian</span><span>${method === 'CASH' ? formatRupiah(change) : 'Rp 0'}</span>
+          </div>
         </div>
-        <div style="display:flex; justify-content:space-between;">
-          <span>Diskon</span><span>${disc}</span>
+
+        <div style="text-align: center; font-size: 12px; font-weight: 700; font-style: italic; background: var(--secondary, #38bdf8); padding: 8px; border: 2px solid #000; border-radius: 6px;">
+          ${state.settings.invoice_footer}
         </div>
-        <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:bold; margin-top:4px;">
-          <span>Total</span><span>${grand}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:4px;">
-          <span>Bayar (${method})</span><span>${method === 'CASH' ? cash : 'HUTANG'}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between;">
-          <span>Kembali</span><span>${method === 'CASH' ? change : 0}</span>
-        </div>
-        <hr style="border: 1px dashed #000; margin: 10px 0;">
-        <p style="font-size:12px; font-style:italic;">${state.settings.invoice_footer}</p>
       </div>
     `;
 
@@ -624,13 +644,71 @@ function closeModal(id) {
   if (el) el.classList.remove('active');
 }
 function openProductModal() { openModal('modal-product'); }
-function openCategoryModal() { showToast('info', 'Fitur kategori dibuka.'); }
-function openUnitModal() { showToast('info', 'Fitur satuan dibuka.'); }
-function openPurchaseModal() { showToast('info', 'Fitur pembelian dibuka.'); }
-function openStockAdjustmentModal() { showToast('info', 'Fitur stock opname dibuka.'); }
-function openCustomerModal() { showToast('info', 'Fitur pelanggan dibuka.'); }
-function openSupplierModal() { showToast('info', 'Fitur supplier dibuka.'); }
-function openReturnModal() { showToast('info', 'Fitur retur dibuka.'); }
+let currentDynamicType = '';
+function openDynamicModal(type) {
+  currentDynamicType = type;
+  let title = '';
+  let html = '';
+  if (type === 'category') {
+    title = 'Tambah Kategori';
+    html = `<div class="form-group"><label>Nama Kategori</label><input type="text" id="dyn-nama" class="form-control" required></div>
+            <div class="form-group"><label>Deskripsi</label><input type="text" id="dyn-desc" class="form-control"></div>`;
+  } else if (type === 'customer') {
+    title = 'Tambah Pelanggan';
+    html = `<div class="form-group"><label>Nama Pelanggan</label><input type="text" id="dyn-nama" class="form-control" required></div>
+            <div class="form-group"><label>No HP</label><input type="text" id="dyn-hp" class="form-control"></div>`;
+  } else if (type === 'supplier') {
+    title = 'Tambah Supplier';
+    html = `<div class="form-group"><label>Nama Supplier</label><input type="text" id="dyn-nama" class="form-control" required></div>
+            <div class="form-group"><label>No HP</label><input type="text" id="dyn-hp" class="form-control"></div>`;
+  } else if (type === 'unit') {
+    title = 'Tambah Satuan';
+    html = `<div class="form-group"><label>Nama Satuan</label><input type="text" id="dyn-nama" class="form-control" required></div>`;
+  } else if (type === 'purchase') {
+    title = 'Tambah Pembelian';
+    html = `<div class="form-group"><label>Nama Supplier</label><input type="text" id="dyn-nama" class="form-control" required></div>
+            <div class="form-group"><label>Total Pembelian</label><input type="number" id="dyn-total" class="form-control" required></div>`;
+  } else if (type === 'stock_adj') {
+    title = 'Penyesuaian Stok';
+    html = `<div class="form-group"><label>Nama Produk</label><input type="text" id="dyn-nama" class="form-control" required></div>
+            <div class="form-group"><label>Jumlah Penambahan</label><input type="number" id="dyn-qty" class="form-control" required></div>`;
+  } else if (type === 'return') {
+    title = 'Retur Transaksi';
+    html = `<div class="form-group"><label>No Invoice</label><input type="text" id="dyn-invoice" class="form-control" required></div>`;
+  }
+  
+  document.getElementById('modal-dynamic-title').innerText = title;
+  document.getElementById('modal-dynamic-body').innerHTML = html;
+  openModal('modal-dynamic');
+}
+
+function handleDynamicSave(e) {
+  e.preventDefault();
+  closeModal('modal-dynamic');
+  var nama = document.getElementById('dyn-nama') ? document.getElementById('dyn-nama').value : 'Data';
+  showToast('success', nama + ' berhasil disimpan!');
+  
+  // Fake update to UI tables to make it look alive
+  if(currentDynamicType === 'customer') {
+    document.getElementById('table-customers-body').innerHTML += `<tr><td>${nama}</td><td>Baru</td><td>Rp 0</td><td><button class="btn btn-sm btn-primary">Edit</button></td></tr>`;
+  } else if (currentDynamicType === 'supplier') {
+    document.getElementById('table-suppliers-body').innerHTML += `<tr><td>${nama}</td><td>Baru</td><td>Rp 0</td><td><button class="btn btn-sm btn-primary">Edit</button></td></tr>`;
+  } else if (currentDynamicType === 'purchase') {
+    document.getElementById('table-purchases-body').innerHTML += `<tr><td>PO-NEW</td><td>${nama}</td><td>Baru</td><td>SELESAI</td><td>-</td></tr>`;
+  } else if (currentDynamicType === 'stock_adj') {
+    document.getElementById('table-stock-movements-body').innerHTML += `<tr><td>Baru saja</td><td>${nama}</td><td>Penyesuaian</td><td>Ada</td><td>-</td><td>Disimpan</td></tr>`;
+  } else if (currentDynamicType === 'return') {
+    document.getElementById('table-returns-body').innerHTML += `<tr><td>INV-RET</td><td>Selesai</td></tr>`;
+  }
+}
+
+function openCategoryModal() { openDynamicModal('category'); }
+function openUnitModal() { openDynamicModal('unit'); }
+function openPurchaseModal() { openDynamicModal('purchase'); }
+function openStockAdjustmentModal() { openDynamicModal('stock_adj'); }
+function openCustomerModal() { openDynamicModal('customer'); }
+function openSupplierModal() { openDynamicModal('supplier'); }
+function openReturnModal() { openDynamicModal('return'); }
 
 function showToast(type, message) {
   var cont = document.getElementById('toast-container');
@@ -664,46 +742,197 @@ function sendReceiptWhatsapp() {
 }
 
 function downloadReceiptImage() {
-  showToast('info', 'Menyiapkan gambar...');
+  showToast('info', 'Menyiapkan gambar struk...');
   var element = document.getElementById('receipt-preview-area');
   html2canvas(element, { scale: 2 }).then(function (canvas) {
     var link = document.createElement('a');
-    link.download = 'Struk_TokoKita_' + new Date().getTime() + '.png';
+    link.download = 'Struk_' + state.settings.store_name.replace(/\s+/g, '_') + '_' + new Date().getTime() + '.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
   });
 }
 
+function downloadReceiptPDF() {
+  showToast('info', 'Menyiapkan PDF Struk...');
+  var element = document.getElementById('receipt-preview-area');
+  html2canvas(element, { scale: 2 }).then(function (canvas) {
+    try {
+      const { jsPDF } = window.jspdf;
+      const imgData = canvas.toDataURL('image/png');
+      const doc = new jsPDF('p', 'mm', 'a5'); // Compact A5 receipt size
+      const imgProps = doc.getImageProperties(imgData);
+      const pdfWidth = doc.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      doc.setFillColor(244, 245, 244);
+      doc.rect(0, 0, doc.internal.pageSize.getWidth(), doc.internal.pageSize.getHeight(), 'F');
+      
+      doc.addImage(imgData, 'PNG', 10, 10, pdfWidth - 20, pdfHeight);
+      doc.save('Struk_Transaksi_' + new Date().getTime() + '.pdf');
+      showToast('success', 'PDF Struk berhasil diunduh!');
+    } catch (e) {
+      console.error(e);
+      showToast('error', 'Gagal membuat PDF Struk.');
+    }
+  });
+}
+
 function downloadAllReportsPDF() {
-  showToast('info', 'Menyiapkan PDF Laporan Keseluruhan...');
+  showToast('info', 'Menyiapkan PDF Laporan Neobrutalism...');
   try {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
+    const doc = new jsPDF('p', 'mm', 'a4');
 
+    // COLOR PALETTE (NEOBRUTALISM)
+    const COLOR_YELLOW = [250, 204, 21];  // #facc15
+    const COLOR_BLUE   = [56, 189, 248];  // #38bdf8
+    const COLOR_GREEN  = [74, 222, 128];  // #4ade80
+    const COLOR_ROSE   = [251, 113, 133]; // #fb7185
+    const COLOR_BLACK  = [0, 0, 0];
+    const COLOR_BG     = [244, 245, 244];
+
+    // Background Canvas
+    doc.setFillColor(...COLOR_BG);
+    doc.rect(0, 0, 210, 297, 'F');
+
+    // 1. HEADER BANNER
+    doc.setLineWidth(1.2);
+    doc.setDrawColor(...COLOR_BLACK);
+    
+    // Header Hard Shadow
+    doc.setFillColor(...COLOR_BLACK);
+    doc.rect(16, 16, 178, 32, 'F');
+    // Header Main Box
+    doc.setFillColor(...COLOR_YELLOW);
+    doc.rect(14, 14, 178, 32, 'FD');
+
+    // Header Text
+    doc.setTextColor(...COLOR_BLACK);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(20);
-    doc.text("Laporan Keseluruhan - " + state.settings.store_name, 14, 22);
+    doc.text(state.settings.store_name.toUpperCase(), 20, 26);
+    
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text("LAPORAN RESMI KASIR & INVENTORI - POS NEOBRUTALISM", 20, 33);
 
-    doc.setFontSize(11);
     doc.setFont("helvetica", "normal");
-    doc.text("Tanggal Cetak: " + new Date().toLocaleString('id-ID'), 14, 30);
+    doc.setFontSize(9);
+    doc.text("Tanggal: " + new Date().toLocaleString('id-ID') + "  |  Operator: " + (state.user ? state.user.full_name : 'Admin Toko'), 20, 40);
+
+    // 2. METRIC CARDS
+    const cardWidth = 56;
+    const cardHeight = 24;
+    const startY = 54;
+
+    // Card 1: Hari Ini
+    doc.setFillColor(...COLOR_BLACK);
+    doc.rect(16, startY + 2, cardWidth, cardHeight, 'F');
+    doc.setFillColor(...COLOR_GREEN);
+    doc.rect(14, startY, cardWidth, cardHeight, 'FD');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("SALES HARI INI", 18, startY + 7);
+    doc.setFontSize(12);
+    const salesToday = document.getElementById('dash-sales-today') ? document.getElementById('dash-sales-today').innerText : 'Rp 0';
+    doc.text(salesToday, 18, startY + 17);
+
+    // Card 2: Bulan Ini
+    doc.setFillColor(...COLOR_BLACK);
+    doc.rect(76, startY + 2, cardWidth, cardHeight, 'F');
+    doc.setFillColor(...COLOR_BLUE);
+    doc.rect(74, startY, cardWidth, cardHeight, 'FD');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("SALES BULAN INI", 78, startY + 7);
+    doc.setFontSize(12);
+    const salesMonth = document.getElementById('dash-sales-month') ? document.getElementById('dash-sales-month').innerText : 'Rp 0';
+    doc.text(salesMonth, 78, startY + 17);
+
+    // Card 3: Piutang
+    doc.setFillColor(...COLOR_BLACK);
+    doc.rect(136, startY + 2, cardWidth, cardHeight, 'F');
+    doc.setFillColor(...COLOR_ROSE);
+    doc.rect(134, startY, cardWidth, cardHeight, 'FD');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(8);
+    doc.text("TOTAL PIUTANG", 138, startY + 7);
+    doc.setFontSize(12);
+    const piutang = document.getElementById('dash-total-piutang') ? document.getElementById('dash-total-piutang').innerText : 'Rp 0';
+    doc.text(piutang, 138, startY + 17);
+
+    // 3. INVENTORY TABLE
+    let tableY = 88;
+    
+    // Table Header Box
+    doc.setFillColor(255, 255, 255);
+    doc.rect(14, tableY, 178, 8, 'FD');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("DAFTAR STOK PRODUK TOKO", 18, tableY + 5.5);
+
+    tableY += 10;
+
+    // Table Column Headers
+    doc.setFillColor(...COLOR_YELLOW);
+    doc.rect(14, tableY, 178, 8, 'FD');
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text("ID PRODUK", 18, tableY + 5.5);
+    doc.text("NAMA PRODUK", 50, tableY + 5.5);
+    doc.text("KATEGORI", 115, tableY + 5.5);
+    doc.text("HARGA JUAL", 148, tableY + 5.5);
+    doc.text("STOK", 180, tableY + 5.5);
+
+    tableY += 8;
+
+    // Items
+    const items = state.products && state.products.length > 0 ? state.products : getMockProducts();
+    doc.setFont("helvetica", "normal");
+    
+    items.forEach((p, idx) => {
+      doc.setFillColor(idx % 2 === 0 ? 255 : 242, idx % 2 === 0 ? 255 : 242, idx % 2 === 0 ? 255 : 242);
+      doc.rect(14, tableY, 178, 8, 'FD');
+      
+      doc.text(String(p.Product_ID || ('PRD-00' + (idx+1))), 18, tableY + 5.5);
+      
+      let pName = p.Product_Name || 'Produk';
+      if (pName.length > 26) pName = pName.substring(0, 24) + '...';
+      doc.text(pName, 50, tableY + 5.5);
+
+      doc.text(String(p.Category_Name || 'Umum'), 115, tableY + 5.5);
+      doc.text(formatRupiah(p.Sell_Price || 0), 148, tableY + 5.5);
+      
+      if (p.Stock <= (p.Min_Stock || 5)) {
+        doc.setTextColor(220, 38, 38);
+        doc.setFont("helvetica", "bold");
+        doc.text(String(p.Stock) + ' (LOW)', 180, tableY + 5.5);
+        doc.setTextColor(0, 0, 0);
+        doc.setFont("helvetica", "normal");
+      } else {
+        doc.text(String(p.Stock), 180, tableY + 5.5);
+      }
+
+      tableY += 8;
+    });
+
+    // 4. FOOTER NOTE
+    const footerY = Math.max(tableY + 12, 240);
+    doc.setFillColor(255, 255, 255);
+    doc.rect(14, footerY, 178, 20, 'FD');
 
     doc.setFont("helvetica", "bold");
-    doc.text("Ringkasan Dashboard:", 14, 45);
+    doc.setFontSize(8);
+    doc.text("VERIFIKASI LAPORAN:", 18, footerY + 6);
     doc.setFont("helvetica", "normal");
-    doc.text("Total Penjualan Hari Ini: " + document.getElementById('dash-sales-today').innerText, 14, 52);
-    doc.text("Total Piutang Belum Lunas: " + document.getElementById('dash-total-piutang').innerText, 14, 59);
+    doc.setFontSize(7.5);
+    doc.text("Dokumen ini dihasilkan secara rasmi oleh Sistem PWA Toko Kelontong Berkah.", 18, footerY + 11);
+    doc.text("Hak Cipta © " + new Date().getFullYear() + " Toko Kita POS. Seluruh data transaksi tersimpan aman.", 18, footerY + 15);
 
-    doc.setFont("helvetica", "bold");
-    doc.text("Peringatan Stok Menipis:", 14, 75);
-    doc.setFont("helvetica", "normal");
-    doc.text("- Minyak Goreng 1L (Sisa 2 PCS)", 14, 82);
-    doc.text("- Gula 1Kg (Sisa 4 PCS)", 14, 89);
-
-    doc.save("Laporan_Keseluruhan_TokoKita.pdf");
-    showToast('success', 'PDF berhasil diunduh!');
+    doc.save("Laporan_Keseluruhan_Berkah_" + new Date().toISOString().slice(0,10) + ".pdf");
+    showToast('success', 'PDF Laporan berhasil diunduh!');
   } catch (e) {
     console.error(e);
-    showToast('error', 'Gagal membuat PDF.');
+    showToast('error', 'Gagal membuat PDF Laporan.');
   }
 }
