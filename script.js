@@ -6,10 +6,10 @@
 // SUPABASE CONFIGURATION (ISI DENGAN URL & KEY ANDA NANTI)
 const SUPABASE_URL = 'https://fhfgzpirdkrtultezuak.supabase.co'; // Contoh: 'https://xyz.supabase.co'
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZoZmd6cGlyZGtydHVsdGV6dWFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA2MTU2MDQsImV4cCI6MjEwNjE5MTYwNH0.Gv_aRkRMJsFpxrR1-wKdC7pKMPuQMi88PYQB6d6IbeY'; // Contoh: 'eyJhbGciOiJIUzI1Ni...'
-let supabase = null;
+let supabaseClient = null;
 
 if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
   console.log("Supabase Client Initialized");
 }
 
@@ -55,10 +55,10 @@ async function callApi(functionName) {
   var args = Array.prototype.slice.call(arguments, 1);
 
   // Jika Supabase sudah dikonfigurasi, gunakan Supabase
-  if (supabase) {
+  if (supabaseClient) {
     try {
       if (functionName === 'loginUser') {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
           email: args[0],
           password: args[1]
         });
@@ -73,11 +73,11 @@ async function callApi(functionName) {
         };
       }
       else if (functionName === 'getProducts') {
-        const { data, error } = await supabase.from('products').select('*');
+        const { data, error } = await supabaseClient.from('products').select('*');
         return data || [];
       }
       else if (functionName === 'getCategories') {
-        const { data, error } = await supabase.from('categories').select('*');
+        const { data, error } = await supabaseClient.from('categories').select('*');
         return data || [];
       }
       // Untuk dashboard dan transaksi bisa dikembangkan lebih lanjut dengan query SQL (RPC) di Supabase
