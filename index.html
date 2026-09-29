@@ -253,6 +253,17 @@
 
       <!-- VIEW: KASIR (POS) -->
       <section id="view-kasir" class="view-panel">
+        <!-- MOBILE POS FLOATING CART TRIGGER BAR (PWA) -->
+        <div class="mobile-cart-float-bar show-on-mobile" id="mobile-cart-float-bar" onclick="openModal('modal-mobile-cart')" style="display:none;">
+          <div class="flex items-center gap-2">
+            <span class="badge badge-primary" style="font-size:13px; padding: 6px 10px;"><i class="ri-shopping-cart-2-fill"></i> <span id="mob-cart-badge-count">0</span> Item</span>
+            <span style="font-size: 16px; font-weight: 900; color: #000;" id="mob-cart-badge-total">Rp 0</span>
+          </div>
+          <button class="btn btn-primary btn-sm" style="font-size:13px; padding: 6px 12px;">
+            BAYAR SEKARANG <i class="ri-arrow-right-line"></i>
+          </button>
+        </div>
+
         <div class="pos-container">
           <!-- LEFT: PRODUCTS LIST -->
           <div>
@@ -573,6 +584,61 @@
           <i class="ri-logout-box-r-line"></i> Keluar Dari Akun
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE CART POP-UP BOTTOM SHEET MODAL (PWA) -->
+<div class="modal-overlay" id="modal-mobile-cart">
+  <div class="modal-box mobile-bottom-sheet" style="max-height: 90vh;">
+    <div class="modal-header">
+      <h3><i class="ri-shopping-cart-2-fill"></i> Keranjang Kasir (<span id="mob-cart-item-count">0</span> Item)</h3>
+      <button class="btn-icon" onclick="closeModal('modal-mobile-cart')"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="modal-body" style="padding: 16px;">
+      <div class="cart-items-list" id="pos-cart-list-mobile" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px; border: 2px solid var(--border-color); border-radius: var(--radius-md); padding: 10px;">
+        <div style="text-align: center; color: var(--text-dim); padding: 30px 0; font-weight: 600;">
+          Keranjang masih kosong
+        </div>
+      </div>
+
+      <div style="background: var(--bg-main); padding: 14px; border: 2px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 14px;">
+        <div class="flex" style="justify-content: space-between; margin-bottom: 6px; font-weight: 600;">
+          <span>Subtotal</span>
+          <span id="pos-subtotal-text-mobile">Rp 0</span>
+        </div>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label style="font-size:12px; margin-bottom: 4px;">Diskon (Rp)</label>
+          <input type="number" id="pos-discount-total-mobile" class="form-control" value="0" oninput="syncDiscountInput(this.value); calculatePosTotal();">
+        </div>
+        <div class="flex" style="justify-content: space-between; font-size: 18px; font-weight: 900; border-top: 2px solid var(--border-color); padding-top: 8px;">
+          <span>Total</span>
+          <span id="pos-grand-total-text-mobile" style="color: var(--danger);">Rp 0</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="font-size:13px; margin-bottom: 4px;">Metode Pembayaran</label>
+        <select id="pos-payment-method-mobile" class="form-control" onchange="syncPaymentMethodSelect(this.value); togglePosPaymentMethod();">
+          <option value="CASH">Tunai</option>
+          <option value="CREDIT">Hutang/Piutang</option>
+        </select>
+      </div>
+
+      <div id="pos-cash-container-mobile">
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label style="font-size:13px; margin-bottom: 4px;">Uang Diterima (Rp)</label>
+          <input type="number" id="pos-cash-received-mobile" class="form-control" placeholder="0" oninput="syncCashInput(this.value); calculatePosTotal();">
+        </div>
+        <div class="flex" style="justify-content: space-between; font-weight: 800; font-size: 15px; margin-bottom: 14px;">
+          <span>Kembalian:</span>
+          <span id="pos-cash-change-text-mobile" style="color: #000; font-weight: 900;">Rp 0</span>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-block" style="padding: 16px; font-size: 18px;" onclick="submitPosSale(); closeModal('modal-mobile-cart');">
+        PROSES TRANSAKSI
+      </button>
     </div>
   </div>
 </div>

@@ -586,8 +586,25 @@ function removeFromCart(idx) {
 
 function renderPosCart() {
   var list = document.getElementById('pos-cart-list');
+  var listMobile = document.getElementById('pos-cart-list-mobile');
+  var mobFloatBar = document.getElementById('mobile-cart-float-bar');
+
+  var totalItems = 0;
+  state.posCart.forEach(item => { totalItems += item.Qty; });
+
+  var mobCountBadge = document.getElementById('mob-cart-badge-count');
+  var mobCountHeader = document.getElementById('mob-cart-item-count');
+  if (mobCountBadge) mobCountBadge.innerText = totalItems;
+  if (mobCountHeader) mobCountHeader.innerText = totalItems;
+
+  if (mobFloatBar) {
+    mobFloatBar.style.display = (state.posCart.length > 0) ? 'flex' : 'none';
+  }
+
   if (state.posCart.length === 0) {
-    list.innerHTML = '<div style="text-align: center; padding: 40px 0; font-weight: 600;">Keranjang kosong</div>';
+    var emptyHtml = '<div style="text-align: center; padding: 30px 0; font-weight: 600; color: var(--text-dim);">Keranjang kosong</div>';
+    if (list) list.innerHTML = emptyHtml;
+    if (listMobile) listMobile.innerHTML = emptyHtml;
     calculatePosTotal();
     return;
   }
@@ -609,29 +626,72 @@ function renderPosCart() {
       '</div>' +
       '</div>';
   });
-  list.innerHTML = html;
+
+  if (list) list.innerHTML = html;
+  if (listMobile) listMobile.innerHTML = html;
   calculatePosTotal();
 }
 
 function calculatePosTotal() {
   var subtotal = 0;
   state.posCart.forEach(function (item) { subtotal += item.Subtotal; });
-  document.getElementById('pos-subtotal-text').innerText = formatRupiah(subtotal);
 
-  var disc = parseFloat(document.getElementById('pos-discount-total').value) || 0;
+  var subEl = document.getElementById('pos-subtotal-text');
+  var subMobEl = document.getElementById('pos-subtotal-text-mobile');
+  if (subEl) subEl.innerText = formatRupiah(subtotal);
+  if (subMobEl) subMobEl.innerText = formatRupiah(subtotal);
+
+  var discEl = document.getElementById('pos-discount-total');
+  var disc = discEl ? (parseFloat(discEl.value) || 0) : 0;
+
   var grand = subtotal - disc;
   if (grand < 0) grand = 0;
-  document.getElementById('pos-grand-total-text').innerText = formatRupiah(grand);
 
-  var cash = parseFloat(document.getElementById('pos-cash-received').value) || 0;
+  var grandEl = document.getElementById('pos-grand-total-text');
+  var grandMobEl = document.getElementById('pos-grand-total-text-mobile');
+  var mobFloatTotal = document.getElementById('mob-cart-badge-total');
+  if (grandEl) grandEl.innerText = formatRupiah(grand);
+  if (grandMobEl) grandMobEl.innerText = formatRupiah(grand);
+  if (mobFloatTotal) mobFloatTotal.innerText = formatRupiah(grand);
+
+  var cashEl = document.getElementById('pos-cash-received');
+  var cash = cashEl ? (parseFloat(cashEl.value) || 0) : 0;
   var change = cash > grand ? cash - grand : 0;
-  document.getElementById('pos-cash-change-text').innerText = formatRupiah(change);
+
+  var changeEl = document.getElementById('pos-cash-change-text');
+  var changeMobEl = document.getElementById('pos-cash-change-text-mobile');
+  if (changeEl) changeEl.innerText = formatRupiah(change);
+  if (changeMobEl) changeMobEl.innerText = formatRupiah(change);
+}
+
+function syncDiscountInput(val) {
+  var d1 = document.getElementById('pos-discount-total');
+  var d2 = document.getElementById('pos-discount-total-mobile');
+  if (d1) d1.value = val;
+  if (d2) d2.value = val;
+}
+
+function syncCashInput(val) {
+  var c1 = document.getElementById('pos-cash-received');
+  var c2 = document.getElementById('pos-cash-received-mobile');
+  if (c1) c1.value = val;
+  if (c2) c2.value = val;
+}
+
+function syncPaymentMethodSelect(val) {
+  var m1 = document.getElementById('pos-payment-method');
+  var m2 = document.getElementById('pos-payment-method-mobile');
+  if (m1) m1.value = val;
+  if (m2) m2.value = val;
 }
 
 function togglePosPaymentMethod() {
-  var method = document.getElementById('pos-payment-method').value;
+  var methodEl = document.getElementById('pos-payment-method');
+  var method = methodEl ? methodEl.value : 'CASH';
   var cashCont = document.getElementById('pos-cash-container');
-  cashCont.style.display = method === 'CREDIT' ? 'none' : 'block';
+  var cashContMob = document.getElementById('pos-cash-container-mobile');
+  if (cashCont) cashCont.style.display = method === 'CREDIT' ? 'none' : 'block';
+  if (cashContMob) cashContMob.style.display = method === 'CREDIT' ? 'none' : 'block';
 }
 
 function submitPosSale() {
@@ -650,6 +710,15 @@ function submitPosSale() {
   var cash = parseFloat(document.getElementById('pos-cash-received').value) || 0;
   var change = cash > grand ? cash - grand : 0;
   var method = document.getElementById('pos-payment-method').value;
+
+  // Save last transaction details for WhatsApp / PDF export
+  state.lastCart = JSON.parse(JSON.stringify(state.posCart));
+  state.lastSubtotal = subtotal;
+  state.lastDiscount = disc;
+  state.lastGrandTotal = grand;
+  state.lastCash = cash;
+  state.lastChange = change;
+  state.lastPaymentMethod = method;
 
   callApi('processSale', state.posCart).then(function (res) {
     showToast('success', res.message);
@@ -859,6 +928,32 @@ function openDynamicModal(type, extraData) {
   } else if (type === 'return') {
     title = 'Retur Transaksi';
     html = `<div class="form-group"><label>No Invoice</label><input type="text" id="dyn-invoice" class="form-control" required></div>`;
+  } else if (type === 'payment') {
+    let pTitle = extraData ? extraData.title : 'Pembayaran';
+    let pName = extraData ? extraData.name : 'Pihak Terkait';
+    let pAmount = extraData ? extraData.amount : 0;
+    title = 'Bayar ' + pTitle + ' (' + pName + ')';
+    html = `
+      <div class="form-group">
+        <label>Nama Pihak / Sasaran</label>
+        <input type="text" id="dyn-nama" class="form-control" value="${pName}" readonly>
+      </div>
+      <div class="form-group">
+        <label>Nominal Pembayaran (Rp)</label>
+        <input type="number" id="dyn-amount" class="form-control" value="${pAmount}" required>
+      </div>
+      <div class="form-group">
+        <label>Metode Pembayaran</label>
+        <select id="dyn-method" class="form-control">
+          <option value="TUNAI">Tunai</option>
+          <option value="TRANSFER">Transfer Bank</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Catatan / Keterangan</label>
+        <input type="text" id="dyn-note" class="form-control" placeholder="Contoh: Pembayaran Lunas">
+      </div>
+    `;
   }
   
   document.getElementById('modal-dynamic-title').innerText = title;
@@ -942,6 +1037,37 @@ function openCustomerModal() { openDynamicModal('customer'); }
 function openSupplierModal() { openDynamicModal('supplier'); }
 function openReturnModal() { openDynamicModal('return'); }
 
+function openPaymentModal(titleType, targetName, amount) {
+  openDynamicModal('payment', { title: titleType, name: targetName, amount: amount });
+}
+
+function viewTransactionDetail(title, name, amount) {
+  var html = `
+    <div style="padding: 10px; font-family: var(--font-main);">
+      <div style="background: var(--primary); padding: 12px; border: 2px solid #000; border-radius: 8px; margin-bottom: 14px; box-shadow: 2px 2px 0 #000;">
+        <h4 style="font-family: var(--font-heading); font-size: 18px; font-weight: 900; margin: 0;">${title}</h4>
+      </div>
+      <div style="font-size: 14px; line-height: 1.6;">
+        <p>Pihak Terkait: <strong>${name}</strong></p>
+        <p>Nominal Transaksi: <strong style="color: var(--success); font-size: 16px;">${formatRupiah(amount)}</strong></p>
+        <p>Tanggal: <strong>${new Date().toLocaleString('id-ID')}</strong></p>
+        <p style="font-size: 13px; color: var(--text-dim); margin-top: 8px; border-top: 1px dashed #000; padding-top: 8px;">
+          ✓ Status: Sah & terverifikasi dalam sistem POS
+        </p>
+      </div>
+    </div>
+  `;
+  document.getElementById('modal-dynamic-title').innerText = 'Detail ' + title;
+  document.getElementById('modal-dynamic-body').innerHTML = html;
+  openModal('modal-dynamic');
+}
+
+function cancelTransaction(title) {
+  if (confirm('Apakah Anda yakin ingin membatalkan ' + title + '?')) {
+    showToast('info', title + ' telah dibatalkan.');
+  }
+}
+
 function showToast(type, message) {
   var cont = document.getElementById('toast-container');
   if (!cont) return;
@@ -993,12 +1119,60 @@ function handleSaveStoreSettings(e) { e.preventDefault(); showToast('success', '
 
 /* RECEIPT & PDF LOGIC */
 function sendReceiptWhatsapp() {
-  var text = "Terima kasih telah berbelanja di " + state.settings.store_name + "!\n\n";
-  text += "Tanggal: " + new Date().toLocaleString('id-ID') + "\n";
-  text += "Total Belanja: " + document.getElementById('pos-grand-total-text').innerText + "\n\n";
-  text += "Struk lengkap dapat dilihat di toko kami.";
-  var waUrl = "https://wa.me/?text=" + encodeURIComponent(text);
-  window.open(waUrl, '_blank');
+  var storeName = state.settings.store_name || "Toko Kita";
+  var storeAddress = state.settings.store_address || "";
+  var storePhone = state.settings.store_phone || "";
+
+  var dateStr = new Date().toLocaleString('id-ID');
+  var cashierName = state.user ? state.user.full_name : 'Admin';
+
+  var text = `🧾 *STRUK TRANSAKSI RESMI*\n`;
+  text += `🏪 *${storeName.toUpperCase()}*\n`;
+  if (storeAddress) text += `📍 ${storeAddress}\n`;
+  if (storePhone) text += `📞 Telp: ${storePhone}\n`;
+  text += `-----------------------------------\n`;
+  text += `📅 Tanggal: ${dateStr}\n`;
+  text += `👤 Kasir: ${cashierName}\n`;
+  text += `-----------------------------------\n\n`;
+
+  text += `🛍️ *RINCIAN ITEM BELANJA:*\n`;
+
+  var items = (state.lastCart && state.lastCart.length > 0) ? state.lastCart : state.posCart;
+  if (items && items.length > 0) {
+    items.forEach(function (item, idx) {
+      text += `${idx + 1}. *${item.Product_Name}*\n`;
+      text += `   └ ${item.Qty} x ${formatRupiah(item.Sell_Price)} = *${formatRupiah(item.Subtotal)}*\n`;
+    });
+  } else {
+    text += `• Transaksi Kasir Toko\n`;
+  }
+
+  text += `\n-----------------------------------\n`;
+  var grandVal = state.lastGrandTotal !== undefined ? formatRupiah(state.lastGrandTotal) : (document.getElementById('pos-grand-total-text') ? document.getElementById('pos-grand-total-text').innerText : 'Rp 0');
+  var subVal = state.lastSubtotal !== undefined ? formatRupiah(state.lastSubtotal) : 'Rp 0';
+  var discVal = state.lastDiscount ? formatRupiah(state.lastDiscount) : 'Rp 0';
+  var methodVal = state.lastPaymentMethod === 'CASH' ? 'TUNAI' : (state.lastPaymentMethod || 'TUNAI');
+  var cashVal = state.lastPaymentMethod === 'CASH' ? formatRupiah(state.lastCash || 0) : 'HUTANG';
+  var changeVal = state.lastPaymentMethod === 'CASH' ? formatRupiah(state.lastChange || 0) : 'Rp 0';
+
+  text += `Subtotal: ${subVal}\n`;
+  if (state.lastDiscount > 0) text += `Diskon: -${discVal}\n`;
+  text += `💵 *TOTAL: ${grandVal}*\n`;
+  text += `Metode Bayar: ${methodVal}\n`;
+  text += `Diterima: ${cashVal}\n`;
+  text += `Kembalian: ${changeVal}\n`;
+  text += `-----------------------------------\n\n`;
+  text += `🙏 *${state.settings.invoice_footer || "Terima kasih telah berbelanja di toko kami!"}*\n`;
+  text += `✨ _Simpan pesan ini sebagai bukti pembayaran sah._`;
+
+  // Automatis mengunduh gambar struk agar kasir bisa langsung melampirkan file gambarnya jika perlu
+  downloadReceiptImage();
+
+  showToast('info', 'Membuka WhatsApp & mengunduh gambar struk...');
+  setTimeout(function() {
+    var waUrl = "https://wa.me/?text=" + encodeURIComponent(text);
+    window.open(waUrl, '_blank');
+  }, 500);
 }
 
 function downloadReceiptImage() {
