@@ -838,6 +838,13 @@ body {
 }
 
 @media (max-width: 768px) {
+  html, body {
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
   .show-on-mobile {
     display: block !important;
   }
@@ -848,9 +855,14 @@ body {
   
   /* PWA App-like container */
   #app-container {
-    padding: 0; /* Edge to edge */
-    flex-direction: column;
-    gap: 0;
+    width: 100% !important;
+    max-width: 100vw !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
   
   /* Sidebar is hidden on Mobile PWA in favor of Bottom App Bar */
@@ -863,11 +875,22 @@ body {
   }
   
   .main-wrapper {
-    width: 100%;
+    width: 100% !important;
+    max-width: 100vw !important;
     min-height: 100vh;
     border-radius: 0;
     border: none;
-    padding-bottom: 84px !important; /* Reserve space for bottom nav */
+    padding-bottom: 84px !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .content-body {
+    padding: 10px 8px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
   }
   
   .topbar {
@@ -876,11 +899,14 @@ body {
     height: 60px;
     position: sticky;
     top: 0;
+    width: 100% !important;
+    max-width: 100vw !important;
     border-radius: 0;
     border-left: none;
     border-right: none;
     border-top: none;
     box-shadow: 0 4px 0 0 var(--shadow-color);
+    box-sizing: border-box !important;
   }
 
   .page-title {
@@ -984,6 +1010,25 @@ body {
 
   .stat-details h2 {
     font-size: 18px;
+  }
+
+  /* FIXED MOBILE CART FLOAT TRIGGER BAR */
+  .mobile-cart-float-bar {
+    display: flex !important;
+    position: fixed;
+    bottom: 72px;
+    left: 12px;
+    right: 12px;
+    background: var(--secondary);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: var(--radius-xl);
+    padding: 10px 14px;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 9990;
+    box-shadow: 4px 4px 0 0 var(--shadow-color);
+    cursor: pointer;
+    animation: slideUp 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
 
   /* FIXED BOTTOM NAVIGATION BAR */

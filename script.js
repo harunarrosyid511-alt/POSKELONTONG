@@ -25,6 +25,26 @@ var state = {
   products: [],
   categories: [],
   units: [],
+  customers: [
+    { Customer_ID: 'CUST-001', Customer_Name: 'Pelanggan Umum', Phone: '-', Address: 'Karanganyar', Piutang: 0, Is_Active: true },
+    { Customer_ID: 'CUST-002', Customer_Name: 'Bpk. Budi S.', Phone: '0812-3456-7890', Address: 'Jl. Pemuda No. 12', Piutang: 150000, Is_Active: true },
+    { Customer_ID: 'CUST-003', Customer_Name: 'Ibu Ani', Phone: '0857-1122-3344', Address: 'Karanganyar', Piutang: 0, Is_Active: false }
+  ],
+  suppliers: [
+    { Supplier_ID: 'SUP-001', Supplier_Name: 'PT Sembako Makmur Jaya', Phone: '0811-9988-7766', Address: 'Solo', Hutang: 500000, Is_Active: true },
+    { Supplier_ID: 'SUP-002', Supplier_Name: 'CV Minyak Nusantara', Phone: '0821-4455-6677', Address: 'Boyolali', Hutang: 0, Is_Active: true }
+  ],
+  purchases: [
+    { Purchase_No: 'PO-2026-001', Supplier_Name: 'PT Sembako Makmur Jaya', Total: 2500000, Status: 'SELESAI', Date: '28 Sep 2026' },
+    { Purchase_No: 'PO-2026-002', Supplier_Name: 'CV Minyak Nusantara', Total: 1200000, Status: 'PROSES', Date: '29 Sep 2026' }
+  ],
+  stockMovements: [
+    { ID: 'STK-001', Date: '29 Sep 2026 08:30', Product_Name: 'Aqua 600ml', Type: 'Penjualan Kasir', In: 0, Out: 5, Ref: 'INV-001' },
+    { ID: 'STK-002', Date: '28 Sep 2026 14:10', Product_Name: 'Minyak Bimoli 1L', Type: 'Kulakan Supplier', In: 20, Out: 0, Ref: 'PO-2026-001' }
+  ],
+  returns: [
+    { Return_No: 'RET-2026-001', Date: '28 Sep 2026', Invoice_No: 'INV-008', Total: 25000, Status: 'SELESAI' }
+  ],
   posCart: [],
   posCategoryFilter: 'ALL',
   activeView: 'dashboard',
@@ -288,8 +308,17 @@ function switchView(viewId) {
 
   // Trigger view specific re-render
   if (viewId === 'dashboard') loadDashboardStats();
-  else if (viewId === 'kasir') renderPosProducts();
+  else if (viewId === 'kasir') { renderPosProducts(); populatePosCustomerSelect(); }
   else if (viewId === 'produk') renderProductTable();
+  else if (viewId === 'pelanggan') renderCustomerTable();
+  else if (viewId === 'supplier') renderSupplierTable();
+  else if (viewId === 'kulakan') renderPurchaseTable();
+  else if (viewId === 'stok') renderStockMovementTable();
+  else if (viewId === 'piutang') renderPiutangTable();
+  else if (viewId === 'hutang') renderHutangTable();
+  else if (viewId === 'retur') renderReturnTable();
+  else if (viewId === 'laporan') loadReports();
+  else if (viewId === 'pengaturan') loadStoreSettingsToForm();
 
   // Scroll to top when view switches
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -314,77 +343,232 @@ function loadAllMasterData() {
 }
 
 function populateInitialTables() {
-  // Table Pelanggan
-  var custBody = document.getElementById('table-customers-body');
-  if (custBody && custBody.children.length === 0) {
-    custBody.innerHTML = `
-      <tr><td>Pelanggan Umum</td><td>-</td><td>Rp 0</td><td><span class="badge badge-success">Aktif</span></td></tr>
-      <tr><td>Bpk. Budi S.</td><td>0812-3456-7890</td><td>Rp 150.000</td><td><button class="btn btn-sm btn-primary" onclick="openDynamicModal('customer')">Edit</button></td></tr>
-      <tr><td>Ibu Ani Karanganyar</td><td>0857-1122-3344</td><td>Rp 0</td><td><button class="btn btn-sm btn-primary" onclick="openDynamicModal('customer')">Edit</button></td></tr>
-    `;
-  }
-
-  // Table Supplier
-  var supBody = document.getElementById('table-suppliers-body');
-  if (supBody && supBody.children.length === 0) {
-    supBody.innerHTML = `
-      <tr><td>PT Sembako Makmur Jaya</td><td>0811-9988-7766</td><td>Rp 500.000</td><td><button class="btn btn-sm btn-primary" onclick="openDynamicModal('supplier')">Edit</button></td></tr>
-      <tr><td>CV Minyak Nusantara</td><td>0821-4455-6677</td><td>Rp 0</td><td><button class="btn btn-sm btn-primary" onclick="openDynamicModal('supplier')">Edit</button></td></tr>
-    `;
-  }
-
-  // Table Pembelian / Kulakan
-  var purBody = document.getElementById('table-purchases-body');
-  if (purBody && purBody.children.length === 0) {
-    purBody.innerHTML = `
-      <tr><td>PO-2026-001</td><td>PT Sembako Makmur Jaya</td><td>Rp 2.500.000</td><td><span class="badge badge-success">SELESAI</span></td><td><button class="btn btn-sm btn-secondary" onclick="showToast('info', 'Mencetak PO...')">Cetak</button></td></tr>
-      <tr><td>PO-2026-002</td><td>CV Minyak Nusantara</td><td>Rp 1.200.000</td><td><span class="badge badge-warning">PROSES</span></td><td><button class="btn btn-sm btn-secondary" onclick="showToast('info', 'Mencetak PO...')">Cetak</button></td></tr>
-    `;
-  }
-
-  // Table Stok Movement
-  var stokBody = document.getElementById('table-stock-movements-body');
-  if (stokBody && stokBody.children.length === 0) {
-    stokBody.innerHTML = `
-      <tr><td>29 Sep 2026 08:30</td><td>Aqua 600ml</td><td>Penjualan Kasir</td><td>-</td><td>5 PCS</td><td>Penjualan INV-001</td></tr>
-      <tr><td>28 Sep 2026 14:10</td><td>Minyak Bimoli 1L</td><td>Kulakan Supplier</td><td>20 PCS</td><td>-</td><td>Restock PO-2026-001</td></tr>
-    `;
-  }
-
-  // Table Piutang
-  var piuBody = document.getElementById('table-piutang-body');
-  if (piuBody) {
-    piuBody.innerHTML = `
-      <thead><tr><th>Pelanggan</th><th>Total Piutang</th><th>Jatuh Tempo</th><th>Status</th><th>Aksi</th></tr></thead>
-      <tbody>
-        <tr><td>Bpk. Budi S.</td><td>Rp 150.000</td><td>05 Okt 2026</td><td><span class="badge badge-warning">Belum Lunas</span></td><td><button class="btn btn-sm btn-success" onclick="openDynamicModal('customer')">Bayar Piutang</button></td></tr>
-      </tbody>
-    `;
-  }
-
-  // Table Hutang
-  var hutBody = document.getElementById('table-hutang-body');
-  if (hutBody) {
-    hutBody.innerHTML = `
-      <thead><tr><th>Supplier</th><th>Total Hutang</th><th>Jatuh Tempo</th><th>Status</th><th>Aksi</th></tr></thead>
-      <tbody>
-        <tr><td>PT Sembako Makmur Jaya</td><td>Rp 500.000</td><td>10 Okt 2026</td><td><span class="badge badge-danger">Belum Lunas</span></td><td><button class="btn btn-sm btn-success" onclick="openDynamicModal('supplier')">Bayar Hutang</button></td></tr>
-      </tbody>
-    `;
-  }
-
-  // Table Retur
-  var retBody = document.getElementById('table-returns-body');
-  if (retBody) {
-    retBody.innerHTML = `
-      <thead><tr><th>No Retur</th><th>Tgl</th><th>No Invoice</th><th>Total Retur</th><th>Status</th></tr></thead>
-      <tbody>
-        <tr><td>RET-2026-001</td><td>28 Sep 2026</td><td>INV-008</td><td>Rp 25.000</td><td><span class="badge badge-success">SELESAI</span></td></tr>
-      </tbody>
-    `;
-  }
-
+  populatePosCustomerSelect();
+  renderCustomerTable();
+  renderSupplierTable();
+  renderPurchaseTable();
+  renderStockMovementTable();
+  renderPiutangTable();
+  renderHutangTable();
+  renderReturnTable();
   loadReports();
+  loadStoreSettingsToForm();
+}
+
+/* TABLE RENDERERS WITH FULL ITEM ACTIONS */
+function renderCustomerTable() {
+  var tbody = document.getElementById('table-customers-body');
+  if (!tbody) return;
+  var html = '';
+  state.customers.forEach(function (c) {
+    var statusBadge = c.Is_Active !== false
+      ? '<span class="badge badge-success">Aktif</span>'
+      : '<span class="badge badge-danger">Non-Aktif</span>';
+
+    var toggleBtn = c.Is_Active !== false
+      ? `<button class="btn btn-warning btn-sm" onclick="toggleCustomerStatus('${c.Customer_ID}')"><i class="ri-eye-off-line"></i> Nonaktifkan</button>`
+      : `<button class="btn btn-success btn-sm" onclick="toggleCustomerStatus('${c.Customer_ID}')"><i class="ri-eye-line"></i> Aktifkan</button>`;
+
+    html += `<tr>
+      <td>${c.Customer_ID}</td>
+      <td><strong>${c.Customer_Name}</strong></td>
+      <td>${c.Phone}</td>
+      <td style="font-weight:800; color: ${c.Piutang > 0 ? 'var(--danger)' : 'var(--text-main)'}">${formatRupiah(c.Piutang)}</td>
+      <td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editCustomer('${c.Customer_ID}')"><i class="ri-edit-line"></i> Edit</button>
+        ${c.Piutang > 0 ? `<button class="btn btn-success btn-sm" onclick="openPaymentModal('Piutang Pelanggan', '${c.Customer_Name}', ${c.Piutang})"><i class="ri-money-dollar-circle-line"></i> Bayar</button>` : ''}
+        ${toggleBtn}
+        <button class="btn btn-danger btn-sm" onclick="deleteCustomer('${c.Customer_ID}')"><i class="ri-delete-bin-line"></i></button>
+      </td>
+    </tr>`;
+  });
+  tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center; padding:20px;">Belum ada pelanggan</td></tr>';
+}
+
+function editCustomer(id) {
+  var c = state.customers.find(item => String(item.Customer_ID) === String(id));
+  if (!c) return;
+  openDynamicModal('customer_edit', c);
+}
+
+function toggleCustomerStatus(id) {
+  var c = state.customers.find(item => String(item.Customer_ID) === String(id));
+  if (c) {
+    c.Is_Active = !c.Is_Active;
+    renderCustomerTable();
+    showToast('info', 'Status pelanggan ' + c.Customer_Name + ' diubah menjadi ' + (c.Is_Active ? 'Aktif' : 'Non-Aktif'));
+  }
+}
+
+function deleteCustomer(id) {
+  var c = state.customers.find(item => String(item.Customer_ID) === String(id));
+  if (c && confirm('Apakah Anda yakin ingin menghapus pelanggan ' + c.Customer_Name + '?')) {
+    state.customers = state.customers.filter(item => String(item.Customer_ID) !== String(id));
+    renderCustomerTable();
+    renderPiutangTable();
+    showToast('info', 'Pelanggan telah dihapus.');
+  }
+}
+
+function renderSupplierTable() {
+  var tbody = document.getElementById('table-suppliers-body');
+  if (!tbody) return;
+  var html = '';
+  state.suppliers.forEach(function (s) {
+    var statusBadge = s.Is_Active !== false
+      ? '<span class="badge badge-success">Aktif</span>'
+      : '<span class="badge badge-danger">Non-Aktif</span>';
+
+    var toggleBtn = s.Is_Active !== false
+      ? `<button class="btn btn-warning btn-sm" onclick="toggleSupplierStatus('${s.Supplier_ID}')"><i class="ri-eye-off-line"></i> Nonaktifkan</button>`
+      : `<button class="btn btn-success btn-sm" onclick="toggleSupplierStatus('${s.Supplier_ID}')"><i class="ri-eye-line"></i> Aktifkan</button>`;
+
+    html += `<tr>
+      <td>${s.Supplier_ID}</td>
+      <td><strong>${s.Supplier_Name}</strong></td>
+      <td>${s.Phone}</td>
+      <td style="font-weight:800; color: ${s.Hutang > 0 ? 'var(--danger)' : 'var(--text-main)'}">${formatRupiah(s.Hutang)}</td>
+      <td>${statusBadge}</td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="editSupplier('${s.Supplier_ID}')"><i class="ri-edit-line"></i> Edit</button>
+        ${s.Hutang > 0 ? `<button class="btn btn-success btn-sm" onclick="openPaymentModal('Hutang Supplier', '${s.Supplier_Name}', ${s.Hutang})"><i class="ri-money-dollar-circle-line"></i> Bayar</button>` : ''}
+        ${toggleBtn}
+        <button class="btn btn-danger btn-sm" onclick="deleteSupplier('${s.Supplier_ID}')"><i class="ri-delete-bin-line"></i></button>
+      </td>
+    </tr>`;
+  });
+  tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center; padding:20px;">Belum ada supplier</td></tr>';
+}
+
+function editSupplier(id) {
+  var s = state.suppliers.find(item => String(item.Supplier_ID) === String(id));
+  if (!s) return;
+  openDynamicModal('supplier_edit', s);
+}
+
+function toggleSupplierStatus(id) {
+  var s = state.suppliers.find(item => String(item.Supplier_ID) === String(id));
+  if (s) {
+    s.Is_Active = !s.Is_Active;
+    renderSupplierTable();
+    showToast('info', 'Status supplier ' + s.Supplier_Name + ' diubah menjadi ' + (s.Is_Active ? 'Aktif' : 'Non-Aktif'));
+  }
+}
+
+function deleteSupplier(id) {
+  var s = state.suppliers.find(item => String(item.Supplier_ID) === String(id));
+  if (s && confirm('Apakah Anda yakin ingin menghapus supplier ' + s.Supplier_Name + '?')) {
+    state.suppliers = state.suppliers.filter(item => String(item.Supplier_ID) !== String(id));
+    renderSupplierTable();
+    renderHutangTable();
+    showToast('info', 'Supplier telah dihapus.');
+  }
+}
+
+function renderPurchaseTable() {
+  var tbody = document.getElementById('table-purchases-body');
+  if (!tbody) return;
+  var html = '';
+  state.purchases.forEach(function (p) {
+    var isDone = p.Status === 'SELESAI';
+    html += `<tr>
+      <td><strong>${p.Purchase_No}</strong></td>
+      <td>${p.Supplier_Name}</td>
+      <td style="font-weight:800;">${formatRupiah(p.Total)}</td>
+      <td><span class="badge ${isDone ? 'badge-success' : 'badge-warning'}">${p.Status}</span></td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="viewTransactionDetail('Pembelian ${p.Purchase_No}', '${p.Supplier_Name}', ${p.Total})"><i class="ri-file-text-line"></i> Detail</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePurchase('${p.Purchase_No}')"><i class="ri-delete-bin-line"></i> Hapus</button>
+      </td>
+    </tr>`;
+  });
+  tbody.innerHTML = html || '<tr><td colspan="5" style="text-align:center; padding:20px;">Belum ada transaksi pembelian</td></tr>';
+}
+
+function deletePurchase(poNo) {
+  if (confirm('Apakah Anda yakin ingin menghapus ' + poNo + '?')) {
+    state.purchases = state.purchases.filter(p => p.Purchase_No !== poNo);
+    renderPurchaseTable();
+    showToast('info', poNo + ' telah dihapus.');
+  }
+}
+
+function renderStockMovementTable() {
+  var tbody = document.getElementById('table-stock-movements-body');
+  if (!tbody) return;
+  var html = '';
+  state.stockMovements.forEach(function (s) {
+    html += `<tr>
+      <td>${s.Date}</td>
+      <td><strong>${s.Product_Name}</strong></td>
+      <td><span class="badge badge-info">${s.Type}</span></td>
+      <td style="color:var(--success); font-weight:800;">${s.In ? '+' + s.In : '-'}</td>
+      <td style="color:var(--danger); font-weight:800;">${s.Out ? '-' + s.Out : '-'}</td>
+      <td>${s.Ref}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html || '<tr><td colspan="6" style="text-align:center; padding:20px;">Belum ada pergerakan stok</td></tr>';
+}
+
+function renderPiutangTable() {
+  var tbody = document.getElementById('table-piutang-body');
+  if (!tbody) return;
+  var piutangList = state.customers.filter(c => c.Piutang > 0);
+  var html = '<thead><tr><th>Pelanggan</th><th>Total Piutang</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+  piutangList.forEach(function (c) {
+    html += `<tr>
+      <td><strong>${c.Customer_Name}</strong></td>
+      <td style="font-weight:900; color:var(--danger);">${formatRupiah(c.Piutang)}</td>
+      <td><span class="badge badge-warning">Belum Lunas</span></td>
+      <td>
+        <button class="btn btn-success btn-sm" onclick="openPaymentModal('Piutang Pelanggan', '${c.Customer_Name}', ${c.Piutang})"><i class="ri-hand-coin-line"></i> Pelunasan</button>
+        <button class="btn btn-secondary btn-sm" onclick="viewTransactionDetail('Piutang ${c.Customer_Name}', '${c.Customer_Name}', ${c.Piutang})"><i class="ri-file-list-line"></i> Detail</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  tbody.innerHTML = piutangList.length > 0 ? html : '<tr><td colspan="4" style="text-align:center; padding:20px;">Semua piutang telah lunas 🎉</td></tr>';
+}
+
+function renderHutangTable() {
+  var tbody = document.getElementById('table-hutang-body');
+  if (!tbody) return;
+  var hutangList = state.suppliers.filter(s => s.Hutang > 0);
+  var html = '<thead><tr><th>Supplier</th><th>Total Hutang</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+  hutangList.forEach(function (s) {
+    html += `<tr>
+      <td><strong>${s.Supplier_Name}</strong></td>
+      <td style="font-weight:900; color:var(--danger);">${formatRupiah(s.Hutang)}</td>
+      <td><span class="badge badge-danger">Belum Lunas</span></td>
+      <td>
+        <button class="btn btn-success btn-sm" onclick="openPaymentModal('Hutang Supplier', '${s.Supplier_Name}', ${s.Hutang})"><i class="ri-hand-coin-line"></i> Pelunasan</button>
+        <button class="btn btn-secondary btn-sm" onclick="viewTransactionDetail('Hutang ${s.Supplier_Name}', '${s.Supplier_Name}', ${s.Hutang})"><i class="ri-file-list-line"></i> Detail</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  tbody.innerHTML = hutangList.length > 0 ? html : '<tr><td colspan="4" style="text-align:center; padding:20px;">Semua hutang telah lunas 🎉</td></tr>';
+}
+
+function renderReturnTable() {
+  var tbody = document.getElementById('table-returns-body');
+  if (!tbody) return;
+  var html = '<thead><tr><th>No Retur</th><th>Tanggal</th><th>Invoice</th><th>Total Retur</th><th>Status</th><th>Aksi</th></tr></thead><tbody>';
+  state.returns.forEach(function (r) {
+    html += `<tr>
+      <td><strong>${r.Return_No}</strong></td>
+      <td>${r.Date}</td>
+      <td>${r.Invoice_No}</td>
+      <td style="font-weight:800;">${formatRupiah(r.Total)}</td>
+      <td><span class="badge badge-success">${r.Status}</span></td>
+      <td>
+        <button class="btn btn-secondary btn-sm" onclick="viewTransactionDetail('Retur ${r.Return_No}', '${r.Invoice_No}', ${r.Total})"><i class="ri-file-text-line"></i> Detail</button>
+      </td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  tbody.innerHTML = html;
 }
 
 function populateCategorySelects() {
@@ -584,6 +768,47 @@ function removeFromCart(idx) {
   renderPosCart();
 }
 
+function clearPosCart() {
+  state.posCart = [];
+  renderPosCart();
+  showToast('info', 'Keranjang kasir telah dikosongkan.');
+}
+
+function setQuickCash(val) {
+  var grandVal = 0;
+  if (val === 'pas') {
+    var subtotal = 0;
+    state.posCart.forEach(function (item) { subtotal += item.Subtotal; });
+    var disc = parseFloat(document.getElementById('pos-discount-total').value) || 0;
+    grandVal = Math.max(0, subtotal - disc);
+  } else {
+    grandVal = parseFloat(val) || 0;
+  }
+  syncCashInput(grandVal);
+  calculatePosTotal();
+}
+
+function syncCustomerSelect(val) {
+  var s1 = document.getElementById('pos-customer-select');
+  var s2 = document.getElementById('pos-customer-select-mobile');
+  if (s1) s1.value = val;
+  if (s2) s2.value = val;
+}
+
+function populatePosCustomerSelect() {
+  var s1 = document.getElementById('pos-customer-select');
+  var s2 = document.getElementById('pos-customer-select-mobile');
+  if (!state.customers) return;
+  var html = '';
+  state.customers.forEach(function (c) {
+    if (c.Is_Active !== false) {
+      html += `<option value="${c.Customer_ID}">${c.Customer_Name} (${c.Phone || '-'})</option>`;
+    }
+  });
+  if (s1) s1.innerHTML = html;
+  if (s2) s2.innerHTML = html;
+}
+
 function renderPosCart() {
   var list = document.getElementById('pos-cart-list');
   var listMobile = document.getElementById('pos-cart-list-mobile');
@@ -611,18 +836,19 @@ function renderPosCart() {
 
   var html = '';
   state.posCart.forEach(function (item, idx) {
-    html += '<div class="cart-item-row">' +
+    html += '<div class="cart-item-row" style="display:flex; align-items:center; justify-content:space-between; padding: 8px 0; border-bottom: 1px dashed var(--border-color);">' +
       '<div style="flex: 1;">' +
-      '<h5 style="font-size:15px; font-weight:800; margin-bottom:4px;">' + item.Product_Name + '</h5>' +
-      '<div style="font-size:13px; font-weight:600; color:var(--text-dim);">' + formatRupiah(item.Sell_Price) + '</div>' +
+      '<h5 style="font-size:14px; font-weight:800; margin-bottom:2px;">' + item.Product_Name + '</h5>' +
+      '<div style="font-size:12px; font-weight:600; color:var(--text-dim);">' + formatRupiah(item.Sell_Price) + '</div>' +
       '</div>' +
-      '<div class="qty-controls" style="margin: 0 10px;">' +
-      '<button class="btn-qty" onclick="updateCartQty(' + idx + ', -1)">-</button>' +
-      '<span style="font-size: 14px; font-weight: 800; width: 28px; text-align: center;">' + item.Qty + '</span>' +
-      '<button class="btn-qty" onclick="updateCartQty(' + idx + ', 1)">+</button>' +
+      '<div class="qty-controls" style="display:flex; align-items:center; gap: 4px; margin: 0 8px;">' +
+      '<button class="btn-qty" style="width:26px; height:26px; border:2px solid #000; background:var(--primary); font-weight:900; border-radius:4px; cursor:pointer;" onclick="updateCartQty(' + idx + ', -1)">-</button>' +
+      '<span style="font-size: 13px; font-weight: 800; width: 24px; text-align: center;">' + item.Qty + '</span>' +
+      '<button class="btn-qty" style="width:26px; height:26px; border:2px solid #000; background:var(--primary); font-weight:900; border-radius:4px; cursor:pointer;" onclick="updateCartQty(' + idx + ', 1)">+</button>' +
       '</div>' +
-      '<div style="text-align: right; min-width: 80px;">' +
-      '<div style="font-size: 14px; font-weight: 800;">' + formatRupiah(item.Subtotal) + '</div>' +
+      '<div style="text-align: right; min-width: 70px; display:flex; align-items:center; justify-content:flex-end; gap: 6px;">' +
+      '<div style="font-size: 13px; font-weight: 900;">' + formatRupiah(item.Subtotal) + '</div>' +
+      '<button class="btn-icon" style="color:var(--danger); background:none; border:none; cursor:pointer; font-size:16px;" onclick="removeFromCart(' + idx + ')" title="Hapus"><i class="ri-delete-bin-line"></i></button>' +
       '</div>' +
       '</div>';
   });
@@ -906,14 +1132,44 @@ function openDynamicModal(type, extraData) {
     title = 'Tambah Kategori';
     html = `<div class="form-group"><label>Nama Kategori</label><input type="text" id="dyn-nama" class="form-control" required></div>
             <div class="form-group"><label>Deskripsi</label><input type="text" id="dyn-desc" class="form-control"></div>`;
-  } else if (type === 'customer') {
-    title = 'Tambah Pelanggan';
-    html = `<div class="form-group"><label>Nama Pelanggan</label><input type="text" id="dyn-nama" class="form-control" required></div>
-            <div class="form-group"><label>No HP</label><input type="text" id="dyn-hp" class="form-control"></div>`;
-  } else if (type === 'supplier') {
-    title = 'Tambah Supplier';
-    html = `<div class="form-group"><label>Nama Supplier</label><input type="text" id="dyn-nama" class="form-control" required></div>
-            <div class="form-group"><label>No HP</label><input type="text" id="dyn-hp" class="form-control"></div>`;
+  } else if (type === 'customer' || type === 'customer_edit') {
+    let isEdit = type === 'customer_edit';
+    let cId = extraData ? extraData.Customer_ID : '';
+    title = isEdit ? 'Edit Pelanggan (' + (extraData ? extraData.Customer_Name : '') + ')' : 'Tambah Pelanggan Baru';
+    html = `
+      <input type="hidden" id="dyn-cust-id" value="${cId}">
+      <div class="form-group">
+        <label>Nama Pelanggan</label>
+        <input type="text" id="dyn-nama" class="form-control" value="${extraData ? extraData.Customer_Name : ''}" placeholder="Nama Pelanggan" required>
+      </div>
+      <div class="form-group">
+        <label>No HP / Whatsapp</label>
+        <input type="text" id="dyn-hp" class="form-control" value="${extraData ? extraData.Phone : ''}" placeholder="08xxxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>Jumlah Piutang (Rp)</label>
+        <input type="number" id="dyn-piutang" class="form-control" value="${extraData ? (extraData.Piutang || 0) : 0}">
+      </div>
+    `;
+  } else if (type === 'supplier' || type === 'supplier_edit') {
+    let isEdit = type === 'supplier_edit';
+    let sId = extraData ? extraData.Supplier_ID : '';
+    title = isEdit ? 'Edit Supplier (' + (extraData ? extraData.Supplier_Name : '') + ')' : 'Tambah Supplier Baru';
+    html = `
+      <input type="hidden" id="dyn-supp-id" value="${sId}">
+      <div class="form-group">
+        <label>Nama Supplier</label>
+        <input type="text" id="dyn-nama" class="form-control" value="${extraData ? extraData.Supplier_Name : ''}" placeholder="Nama Supplier / PT" required>
+      </div>
+      <div class="form-group">
+        <label>No HP / Telepon</label>
+        <input type="text" id="dyn-hp" class="form-control" value="${extraData ? extraData.Phone : ''}" placeholder="08xxxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label>Jumlah Hutang (Rp)</label>
+        <input type="number" id="dyn-hutang" class="form-control" value="${extraData ? (extraData.Hutang || 0) : 0}">
+      </div>
+    `;
   } else if (type === 'unit') {
     title = 'Tambah Satuan';
     html = `<div class="form-group"><label>Nama Satuan</label><input type="text" id="dyn-nama" class="form-control" required></div>`;
@@ -1012,20 +1268,143 @@ function handleDynamicSave(e) {
     });
     return;
   }
-  
-  showToast('success', nama + ' berhasil disimpan!');
-  
-  // Fake update to UI tables to make it look alive
-  if(currentDynamicType === 'customer') {
-    document.getElementById('table-customers-body').innerHTML += `<tr><td>${nama}</td><td>Baru</td><td>Rp 0</td><td><button class="btn btn-sm btn-primary">Edit</button></td></tr>`;
-  } else if (currentDynamicType === 'supplier') {
-    document.getElementById('table-suppliers-body').innerHTML += `<tr><td>${nama}</td><td>Baru</td><td>Rp 0</td><td><button class="btn btn-sm btn-primary">Edit</button></td></tr>`;
-  } else if (currentDynamicType === 'purchase') {
-    document.getElementById('table-purchases-body').innerHTML += `<tr><td>PO-NEW</td><td>${nama}</td><td>Baru</td><td>SELESAI</td><td>-</td></tr>`;
-  } else if (currentDynamicType === 'stock_adj') {
-    document.getElementById('table-stock-movements-body').innerHTML += `<tr><td>Baru saja</td><td>${nama}</td><td>Penyesuaian</td><td>Ada</td><td>-</td><td>Disimpan</td></tr>`;
-  } else if (currentDynamicType === 'return') {
-    document.getElementById('table-returns-body').innerHTML += `<tr><td>INV-RET</td><td>Selesai</td></tr>`;
+
+  if (currentDynamicType === 'customer' || currentDynamicType === 'customer_edit') {
+    var hp = document.getElementById('dyn-hp') ? document.getElementById('dyn-hp').value : '-';
+    var piutang = document.getElementById('dyn-piutang') ? parseFloat(document.getElementById('dyn-piutang').value) || 0 : 0;
+    var custId = document.getElementById('dyn-cust-id') ? document.getElementById('dyn-cust-id').value : '';
+
+    if (currentDynamicType === 'customer_edit' && custId) {
+      var custObj = state.customers.find(c => String(c.Customer_ID) === String(custId));
+      if (custObj) {
+        custObj.Customer_Name = nama;
+        custObj.Phone = hp;
+        custObj.Piutang = piutang;
+      }
+      renderCustomerTable();
+      renderPiutangTable();
+      showToast('success', 'Pelanggan "' + nama + '" berhasil diperbarui!');
+      return;
+    }
+
+    var newCustId = 'CUST-00' + (state.customers.length + 1);
+    var newCust = {
+      Customer_ID: newCustId,
+      Customer_Name: nama,
+      Phone: hp || '-',
+      Address: '-',
+      Piutang: piutang,
+      Is_Active: true
+    };
+    state.customers.push(newCust);
+    renderCustomerTable();
+    renderPiutangTable();
+    showToast('success', 'Pelanggan "' + nama + '" berhasil ditambahkan!');
+    return;
+  }
+
+  if (currentDynamicType === 'supplier' || currentDynamicType === 'supplier_edit') {
+    var hp = document.getElementById('dyn-hp') ? document.getElementById('dyn-hp').value : '-';
+    var hutang = document.getElementById('dyn-hutang') ? parseFloat(document.getElementById('dyn-hutang').value) || 0 : 0;
+    var suppId = document.getElementById('dyn-supp-id') ? document.getElementById('dyn-supp-id').value : '';
+
+    if (currentDynamicType === 'supplier_edit' && suppId) {
+      var suppObj = state.suppliers.find(s => String(s.Supplier_ID) === String(suppId));
+      if (suppObj) {
+        suppObj.Supplier_Name = nama;
+        suppObj.Phone = hp;
+        suppObj.Hutang = hutang;
+      }
+      renderSupplierTable();
+      renderHutangTable();
+      showToast('success', 'Supplier "' + nama + '" berhasil diperbarui!');
+      return;
+    }
+
+    var newSuppId = 'SUP-00' + (state.suppliers.length + 1);
+    var newSupp = {
+      Supplier_ID: newSuppId,
+      Supplier_Name: nama,
+      Phone: hp || '-',
+      Address: '-',
+      Hutang: hutang,
+      Is_Active: true
+    };
+    state.suppliers.push(newSupp);
+    renderSupplierTable();
+    renderHutangTable();
+    showToast('success', 'Supplier "' + nama + '" berhasil ditambahkan!');
+    return;
+  }
+
+  if (currentDynamicType === 'payment') {
+    var amt = document.getElementById('dyn-amount') ? parseFloat(document.getElementById('dyn-amount').value) || 0 : 0;
+    var targetCust = state.customers.find(c => c.Customer_Name === nama);
+    if (targetCust) {
+      targetCust.Piutang = Math.max(0, targetCust.Piutang - amt);
+      renderCustomerTable();
+      renderPiutangTable();
+    }
+    var targetSupp = state.suppliers.find(s => s.Supplier_Name === nama);
+    if (targetSupp) {
+      targetSupp.Hutang = Math.max(0, targetSupp.Hutang - amt);
+      renderSupplierTable();
+      renderHutangTable();
+    }
+    showToast('success', 'Pembayaran sebesar ' + formatRupiah(amt) + ' untuk ' + nama + ' berhasil dicatat!');
+    return;
+  }
+
+  if (currentDynamicType === 'purchase') {
+    var tot = document.getElementById('dyn-total') ? parseFloat(document.getElementById('dyn-total').value) || 0 : 0;
+    var poNo = 'PO-2026-00' + (state.purchases.length + 1);
+    state.purchases.unshift({
+      Purchase_No: poNo,
+      Supplier_Name: nama,
+      Total: tot,
+      Status: 'SELESAI',
+      Date: formatDateIndo(new Date())
+    });
+    renderPurchaseTable();
+    showToast('success', 'Pembelian PO ' + poNo + ' berhasil dicatat!');
+    return;
+  }
+
+  if (currentDynamicType === 'stock_adj') {
+    var qty = document.getElementById('dyn-qty') ? parseFloat(document.getElementById('dyn-qty').value) || 0 : 0;
+    state.stockMovements.unshift({
+      ID: 'STK-00' + (state.stockMovements.length + 1),
+      Date: new Date().toLocaleString('id-ID'),
+      Product_Name: nama,
+      Type: 'Penyesuaian Manual',
+      In: qty,
+      Out: 0,
+      Ref: 'ADJ-MANUAL'
+    });
+    var targetP = state.products.find(p => p.Product_Name.toLowerCase() === nama.toLowerCase());
+    if (targetP) {
+      targetP.Stock += qty;
+      renderProductTable();
+      renderPosProducts();
+    }
+    renderStockMovementTable();
+    showToast('success', 'Penyesuaian stok ' + nama + ' (+' + qty + ') berhasil disimpan!');
+    return;
+  }
+
+  if (currentDynamicType === 'return') {
+    var invNo = document.getElementById('dyn-invoice') ? document.getElementById('dyn-invoice').value : 'INV-001';
+    var retNo = 'RET-2026-00' + (state.returns.length + 1);
+    state.returns.unshift({
+      Return_No: retNo,
+      Date: formatDateIndo(new Date()),
+      Invoice_No: invNo,
+      Total: 50000,
+      Status: 'SELESAI'
+    });
+    renderReturnTable();
+    showToast('success', 'Retur ' + retNo + ' untuk ' + invNo + ' berhasil dicatat!');
+    return;
   }
 }
 
@@ -1115,7 +1494,75 @@ function loadReports() {
   `;
   container.innerHTML = html;
 }
-function handleSaveStoreSettings(e) { e.preventDefault(); showToast('success', 'Tersimpan.'); }
+function loadStoreSettingsToForm() {
+  if (document.getElementById('set-store-name')) document.getElementById('set-store-name').value = state.settings.store_name || '';
+  if (document.getElementById('set-store-address')) document.getElementById('set-store-address').value = state.settings.store_address || '';
+  if (document.getElementById('set-store-phone')) document.getElementById('set-store-phone').value = state.settings.store_phone || '';
+  if (document.getElementById('set-invoice-footer')) document.getElementById('set-invoice-footer').value = state.settings.invoice_footer || '';
+  if (document.getElementById('set-supabase-url')) document.getElementById('set-supabase-url').value = SUPABASE_URL || '';
+  if (document.getElementById('set-supabase-key')) document.getElementById('set-supabase-key').value = SUPABASE_KEY || '';
+  if (document.getElementById('set-user-fullname') && state.user) document.getElementById('set-user-fullname').value = state.user.full_name || 'Admin Toko';
+}
+
+function handleSaveStoreSettings(e) {
+  e.preventDefault();
+  
+  state.settings.store_name = document.getElementById('set-store-name') ? (document.getElementById('set-store-name').value || 'Toko Kita') : 'Toko Kita';
+  state.settings.store_address = document.getElementById('set-store-address') ? document.getElementById('set-store-address').value : '';
+  state.settings.store_phone = document.getElementById('set-store-phone') ? document.getElementById('set-store-phone').value : '';
+  state.settings.invoice_footer = document.getElementById('set-invoice-footer') ? (document.getElementById('set-invoice-footer').value || 'Terima kasih telah berbelanja!') : 'Terima kasih!';
+
+  var userFullname = document.getElementById('set-user-fullname') ? document.getElementById('set-user-fullname').value : '';
+  if (state.user && userFullname) {
+    state.user.full_name = userFullname;
+  }
+
+  // Update DOM header & branding elements
+  var brandStoreName = document.getElementById('brand-store-name');
+  if (brandStoreName) brandStoreName.innerText = state.settings.store_name;
+
+  updateUserUI();
+
+  // Save session state to localStorage
+  localStorage.setItem('pos_session', JSON.stringify({
+    user: state.user,
+    settings: state.settings
+  }));
+
+  showToast('success', 'Pengaturan toko berhasil disimpan!');
+}
+
+function runTestSupabase() {
+  var statusBadge = document.getElementById('set-db-status-badge');
+  if (!statusBadge) return;
+
+  statusBadge.innerText = 'Menguji...';
+  statusBadge.className = 'badge badge-warning';
+
+  if (supabaseClient) {
+    supabaseClient.from('products').select('count', { count: 'exact', head: true }).then(function(res) {
+      if (res.error) {
+        statusBadge.innerText = 'Supabase Error';
+        statusBadge.className = 'badge badge-danger';
+        showToast('error', 'Gagal terhubung ke Supabase: ' + res.error.message);
+      } else {
+        statusBadge.innerText = 'Supabase Terhubung ✓';
+        statusBadge.className = 'badge badge-success';
+        showToast('success', 'Koneksi ke Database Supabase Berhasil!');
+      }
+    }).catch(function(err) {
+      statusBadge.innerText = 'Supabase Offline';
+      statusBadge.className = 'badge badge-danger';
+      showToast('warning', 'Supabase Offline, berjalan pada mode lokal.');
+    });
+  } else {
+    setTimeout(function() {
+      statusBadge.innerText = 'Mode Standalone / Lokal OK';
+      statusBadge.className = 'badge badge-success';
+      showToast('info', 'Aplikasi aktif dengan penyimpanan data lokal.');
+    }, 300);
+  }
+}
 
 /* RECEIPT & PDF LOGIC */
 function sendReceiptWhatsapp() {

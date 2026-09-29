@@ -1,4 +1,4 @@
-const CACHE_NAME = 'toko-kita-pos-v9';
+const CACHE_NAME = 'toko-kita-pos-v11';
 const urlsToCache = [
   './index.html',
   './styles.css',
