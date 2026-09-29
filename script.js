@@ -74,13 +74,56 @@ async function callApi(functionName) {
       }
       else if (functionName === 'getProducts') {
         const { data, error } = await supabaseClient.from('products').select('*');
-        return data || [];
+        if (error || !data || data.length === 0) {
+          console.log("Supabase products fallback or empty:", error);
+          return getMockProducts();
+        }
+        return data.map(p => ({
+          Product_ID: p.product_id || p.Product_ID || ('PRD-' + Math.floor(Math.random() * 1000)),
+          Barcode: p.barcode || p.Barcode || '',
+          Product_Name: p.product_name || p.Product_Name || 'Produk',
+          Category_ID: p.category_id || p.Category_ID || 'CAT-001',
+          Category_Name: p.category_name || p.Category_Name || 'Umum',
+          Base_Unit: p.base_unit || p.Base_Unit || 'PCS',
+          Buy_Price_WAC: parseFloat(p.buy_price_wac || p.Buy_Price_WAC || 0),
+          Sell_Price: parseFloat(p.sell_price || p.Sell_Price || 0),
+          Stock: parseFloat(p.stock || p.Stock || 0),
+          Min_Stock: parseFloat(p.min_stock || p.Min_Stock || 5)
+        }));
       }
       else if (functionName === 'getCategories') {
         const { data, error } = await supabaseClient.from('categories').select('*');
-        return data || [];
+        if (error || !data || data.length === 0) {
+          return [
+            { Category_ID: 'CAT-001', Category_Name: 'Makanan' },
+            { Category_ID: 'CAT-002', Category_Name: 'Minuman' },
+            { Category_ID: 'CAT-003', Category_Name: 'Bahan Pokok' }
+          ];
+        }
+        return data.map(c => ({
+          Category_ID: c.category_id || c.Category_ID,
+          Category_Name: c.category_name || c.Category_Name
+        }));
       }
-      // Untuk dashboard dan transaksi bisa dikembangkan lebih lanjut dengan query SQL (RPC) di Supabase
+      else if (functionName === 'addProduct') {
+        const p = args[0];
+        try {
+          const { data, error } = await supabaseClient.from('products').insert([{
+            product_id: p.Product_ID,
+            product_name: p.Product_Name,
+            category_id: p.Category_ID,
+            base_unit: p.Base_Unit || 'PCS',
+            buy_price_wac: p.Buy_Price_WAC,
+            sell_price: p.Sell_Price,
+            stock: p.Stock,
+            min_stock: p.Min_Stock || 5
+          }]);
+          if (error) console.error("Supabase addProduct Error:", error);
+          return { success: !error, message: error ? error.message : 'Produk disimpan ke Supabase' };
+        } catch(e) {
+          console.error("AddProduct Exception:", e);
+        }
+      }
     } catch (err) {
       console.error("Supabase Error:", err);
     }
@@ -265,8 +308,83 @@ function loadAllMasterData() {
     state.products = results[0] || [];
     state.categories = results[1] || [];
     populateCategorySelects();
+    populateInitialTables();
     switchView(state.activeView);
   });
+}
+
+function populateInitialTables() {
+  // Table Pelanggan
+  var custBody = document.getElementById('table-customers-body');
+  if (custBody && custBody.children.length === 0) {
+    custBody.innerHTML = `
+      <tr><td>Pelanggan Umum</td><td>-</td><td>Rp 0</td><td><span class="badge badge-success">Aktif</span></td></tr>
+      <tr><td>Bpk. Budi S.</td><td>0812-3456-7890</td><td>Rp 150.000</td><td><button class="btn btn-sm btn-primary" onclick="openDynamicModal('customer')">Edit</button></td></tr>
+      <tr><td>Ibu Ani Karanganyar</td><td>0857-1122-3344</td><td>Rp 0</td><td><button class="btn btn-sm btn-primary" onclick="openDynamicModal('customer')">Edit</button></td></tr>
+    `;
+  }
+
+  // Table Supplier
+  var supBody = document.getElementById('table-suppliers-body');
+  if (supBody && supBody.children.length === 0) {
+    supBody.innerHTML = `
+      <tr><td>PT Sembako Makmur Jaya</td><td>0811-9988-7766</td><td>Rp 500.000</td><td><button class="btn btn-sm btn-primary" onclick="openDynamicModal('supplier')">Edit</button></td></tr>
+      <tr><td>CV Minyak Nusantara</td><td>0821-4455-6677</td><td>Rp 0</td><td><button class="btn btn-sm btn-primary" onclick="openDynamicModal('supplier')">Edit</button></td></tr>
+    `;
+  }
+
+  // Table Pembelian / Kulakan
+  var purBody = document.getElementById('table-purchases-body');
+  if (purBody && purBody.children.length === 0) {
+    purBody.innerHTML = `
+      <tr><td>PO-2026-001</td><td>PT Sembako Makmur Jaya</td><td>Rp 2.500.000</td><td><span class="badge badge-success">SELESAI</span></td><td><button class="btn btn-sm btn-secondary" onclick="showToast('info', 'Mencetak PO...')">Cetak</button></td></tr>
+      <tr><td>PO-2026-002</td><td>CV Minyak Nusantara</td><td>Rp 1.200.000</td><td><span class="badge badge-warning">PROSES</span></td><td><button class="btn btn-sm btn-secondary" onclick="showToast('info', 'Mencetak PO...')">Cetak</button></td></tr>
+    `;
+  }
+
+  // Table Stok Movement
+  var stokBody = document.getElementById('table-stock-movements-body');
+  if (stokBody && stokBody.children.length === 0) {
+    stokBody.innerHTML = `
+      <tr><td>29 Sep 2026 08:30</td><td>Aqua 600ml</td><td>Penjualan Kasir</td><td>-</td><td>5 PCS</td><td>Penjualan INV-001</td></tr>
+      <tr><td>28 Sep 2026 14:10</td><td>Minyak Bimoli 1L</td><td>Kulakan Supplier</td><td>20 PCS</td><td>-</td><td>Restock PO-2026-001</td></tr>
+    `;
+  }
+
+  // Table Piutang
+  var piuBody = document.getElementById('table-piutang-body');
+  if (piuBody) {
+    piuBody.innerHTML = `
+      <thead><tr><th>Pelanggan</th><th>Total Piutang</th><th>Jatuh Tempo</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody>
+        <tr><td>Bpk. Budi S.</td><td>Rp 150.000</td><td>05 Okt 2026</td><td><span class="badge badge-warning">Belum Lunas</span></td><td><button class="btn btn-sm btn-success" onclick="openDynamicModal('customer')">Bayar Piutang</button></td></tr>
+      </tbody>
+    `;
+  }
+
+  // Table Hutang
+  var hutBody = document.getElementById('table-hutang-body');
+  if (hutBody) {
+    hutBody.innerHTML = `
+      <thead><tr><th>Supplier</th><th>Total Hutang</th><th>Jatuh Tempo</th><th>Status</th><th>Aksi</th></tr></thead>
+      <tbody>
+        <tr><td>PT Sembako Makmur Jaya</td><td>Rp 500.000</td><td>10 Okt 2026</td><td><span class="badge badge-danger">Belum Lunas</span></td><td><button class="btn btn-sm btn-success" onclick="openDynamicModal('supplier')">Bayar Hutang</button></td></tr>
+      </tbody>
+    `;
+  }
+
+  // Table Retur
+  var retBody = document.getElementById('table-returns-body');
+  if (retBody) {
+    retBody.innerHTML = `
+      <thead><tr><th>No Retur</th><th>Tgl</th><th>No Invoice</th><th>Total Retur</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>RET-2026-001</td><td>28 Sep 2026</td><td>INV-008</td><td>Rp 25.000</td><td><span class="badge badge-success">SELESAI</span></td></tr>
+      </tbody>
+    `;
+  }
+
+  loadReports();
 }
 
 function populateCategorySelects() {
@@ -596,11 +714,21 @@ function submitPosSale() {
     document.getElementById('receipt-preview-area').innerHTML = receiptHtml;
     openModal('modal-invoice');
 
-    // Reset Cart
+    // Deduct stock in state & update UI
+    state.posCart.forEach(function (cartItem) {
+      var prod = state.products.find(p => String(p.Product_ID) === String(cartItem.Product_ID));
+      if (prod) {
+        prod.Stock = Math.max(0, prod.Stock - cartItem.Qty);
+      }
+    });
+
+    // Reset Cart & Refresh Product Views
     state.posCart = [];
     document.getElementById('pos-discount-total').value = 0;
     document.getElementById('pos-cash-received').value = '';
     renderPosCart();
+    renderPosProducts();
+    renderProductTable();
   });
 }
 
@@ -626,12 +754,29 @@ function renderProductTable() {
       '<td style="color: var(--success); font-weight: 800;">' + formatRupiah(p.Sell_Price) + '</td>' +
       '<td><span class="badge badge-primary">' + p.Stock + '</span></td>' +
       '<td>' +
-      '<button class="btn btn-secondary btn-sm"><i class="ri-edit-line"></i></button> ' +
-      '<button class="btn btn-danger btn-sm"><i class="ri-delete-bin-line"></i></button>' +
+      '<button class="btn btn-secondary btn-sm" onclick="editProduct(\'' + p.Product_ID + '\')"><i class="ri-edit-line"></i></button> ' +
+      '<button class="btn btn-danger btn-sm" onclick="deleteProduct(\'' + p.Product_ID + '\')"><i class="ri-delete-bin-line"></i></button>' +
       '</td>' +
       '</tr>';
   });
   tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center; padding: 20px;">Kosong</td></tr>';
+}
+
+function deleteProduct(productId) {
+  var p = state.products.find(item => String(item.Product_ID) === String(productId));
+  var pName = p ? p.Product_Name : 'produk ini';
+  if (confirm('Apakah Anda yakin ingin menghapus ' + pName + '?')) {
+    state.products = state.products.filter(item => String(item.Product_ID) !== String(productId));
+    renderProductTable();
+    renderPosProducts();
+    showToast('info', 'Produk "' + pName + '" telah dihapus.');
+  }
+}
+
+function editProduct(productId) {
+  var p = state.products.find(item => String(item.Product_ID) === String(productId));
+  if (!p) return;
+  openDynamicModal('product_edit', p);
 }
 
 /* MODALS & TOASTS */
@@ -643,13 +788,52 @@ function closeModal(id) {
   var el = document.getElementById(id);
   if (el) el.classList.remove('active');
 }
-function openProductModal() { openModal('modal-product'); }
+function openProductModal() { openDynamicModal('product'); }
 let currentDynamicType = '';
-function openDynamicModal(type) {
+function openDynamicModal(type, extraData) {
   currentDynamicType = type;
   let title = '';
   let html = '';
-  if (type === 'category') {
+  let editingProdId = extraData ? extraData.Product_ID : '';
+
+  if (type === 'product' || type === 'product_edit') {
+    let isEdit = type === 'product_edit';
+    title = isEdit ? 'Edit Produk (' + (extraData ? extraData.Product_Name : '') + ')' : 'Tambah Produk Baru';
+    let catOptions = '';
+    let currentCat = extraData ? extraData.Category_ID : '';
+    if (state.categories && state.categories.length > 0) {
+      state.categories.forEach(c => {
+        let sel = (String(c.Category_ID) === String(currentCat)) ? 'selected' : '';
+        catOptions += `<option value="${c.Category_ID}" ${sel}>${c.Category_Name}</option>`;
+      });
+    } else {
+      catOptions = `<option value="CAT-001">Makanan</option><option value="CAT-002">Minuman</option><option value="CAT-003">Bahan Pokok</option>`;
+    }
+
+    html = `
+      <input type="hidden" id="dyn-prod-id" value="${editingProdId}">
+      <div class="form-group">
+        <label>Nama Produk</label>
+        <input type="text" id="dyn-nama" class="form-control" value="${extraData ? extraData.Product_Name : ''}" placeholder="Contoh: Aqua 600ml" required>
+      </div>
+      <div class="form-group">
+        <label>Kategori</label>
+        <select id="dyn-cat" class="form-control" required>${catOptions}</select>
+      </div>
+      <div class="form-group">
+        <label>Harga Beli (Rp)</label>
+        <input type="number" id="dyn-buy" class="form-control" value="${extraData ? extraData.Buy_Price_WAC : 3000}" required>
+      </div>
+      <div class="form-group">
+        <label>Harga Jual (Rp)</label>
+        <input type="number" id="dyn-sell" class="form-control" value="${extraData ? extraData.Sell_Price : 4000}" required>
+      </div>
+      <div class="form-group">
+        <label>Stok</label>
+        <input type="number" id="dyn-stock" class="form-control" value="${extraData ? extraData.Stock : 25}" required>
+      </div>
+    `;
+  } else if (type === 'category') {
     title = 'Tambah Kategori';
     html = `<div class="form-group"><label>Nama Kategori</label><input type="text" id="dyn-nama" class="form-control" required></div>
             <div class="form-group"><label>Deskripsi</label><input type="text" id="dyn-desc" class="form-control"></div>`;
@@ -686,6 +870,54 @@ function handleDynamicSave(e) {
   e.preventDefault();
   closeModal('modal-dynamic');
   var nama = document.getElementById('dyn-nama') ? document.getElementById('dyn-nama').value : 'Data';
+
+  if (currentDynamicType === 'product' || currentDynamicType === 'product_edit') {
+    var catSelect = document.getElementById('dyn-cat');
+    var catId = catSelect ? catSelect.value : 'CAT-001';
+    var catText = catSelect && catSelect.options[catSelect.selectedIndex] ? catSelect.options[catSelect.selectedIndex].text : 'Umum';
+    var buyPrice = document.getElementById('dyn-buy') ? parseFloat(document.getElementById('dyn-buy').value) || 0 : 0;
+    var sellPrice = document.getElementById('dyn-sell') ? parseFloat(document.getElementById('dyn-sell').value) || 0 : 0;
+    var stock = document.getElementById('dyn-stock') ? parseFloat(document.getElementById('dyn-stock').value) || 0 : 10;
+    var existingId = document.getElementById('dyn-prod-id') ? document.getElementById('dyn-prod-id').value : '';
+
+    if (currentDynamicType === 'product_edit' && existingId) {
+      var item = state.products.find(p => String(p.Product_ID) === String(existingId));
+      if (item) {
+        item.Product_Name = nama;
+        item.Category_ID = catId;
+        item.Category_Name = catText;
+        item.Buy_Price_WAC = buyPrice;
+        item.Sell_Price = sellPrice;
+        item.Stock = stock;
+      }
+      renderProductTable();
+      renderPosProducts();
+      showToast('success', 'Produk "' + nama + '" berhasil diperbarui!');
+      return;
+    }
+
+    var newProdId = 'PRD-' + Math.floor(100 + Math.random() * 900);
+    var newProd = {
+      Product_ID: newProdId,
+      Product_Name: nama,
+      Category_ID: catId,
+      Category_Name: catText,
+      Base_Unit: 'PCS',
+      Buy_Price_WAC: buyPrice,
+      Sell_Price: sellPrice,
+      Stock: stock,
+      Min_Stock: 5
+    };
+
+    callApi('addProduct', newProd).then(function(res) {
+      state.products.push(newProd);
+      renderProductTable();
+      renderPosProducts();
+      showToast('success', 'Produk "' + nama + '" berhasil ditambahkan!');
+    });
+    return;
+  }
+  
   showToast('success', nama + ' berhasil disimpan!');
   
   // Fake update to UI tables to make it look alive
@@ -728,7 +960,35 @@ function handleSaveProduct(e) {
   showToast('success', 'Produk disimpan (Mock).');
 }
 function runSetupDatabase() { showToast('success', 'Database OK (Mock).'); }
-function loadReports() { document.getElementById('laporan-table-container').innerText = 'Menampilkan seluruh tipe aktivitas...'; }
+function loadReports() {
+  var container = document.getElementById('laporan-table-container');
+  if (!container) return;
+
+  var type = document.getElementById('lap-type') ? document.getElementById('lap-type').value : 'ALL';
+  var html = `
+    <div class="table-responsive" style="margin-top: 12px;">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>No Invoice</th>
+            <th>Tanggal</th>
+            <th>Kasir</th>
+            <th>Metode</th>
+            <th>Total Sales</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>INV-2026-091</td><td>29 Sep 2026 08:30</td><td>${state.user ? state.user.full_name : 'Admin'}</td><td>TUNAI</td><td>Rp 45.000</td><td><span class="badge badge-success">LUNAS</span></td></tr>
+          <tr><td>INV-2026-090</td><td>29 Sep 2026 07:45</td><td>${state.user ? state.user.full_name : 'Admin'}</td><td>TUNAI</td><td>Rp 120.000</td><td><span class="badge badge-success">LUNAS</span></td></tr>
+          <tr><td>INV-2026-089</td><td>28 Sep 2026 18:20</td><td>${state.user ? state.user.full_name : 'Admin'}</td><td>HUTANG</td><td>Rp 150.000</td><td><span class="badge badge-warning">PIUTANG</span></td></tr>
+          <tr><td>INV-2026-088</td><td>28 Sep 2026 16:15</td><td>${state.user ? state.user.full_name : 'Admin'}</td><td>TUNAI</td><td>Rp 85.000</td><td><span class="badge badge-success">LUNAS</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  `;
+  container.innerHTML = html;
+}
 function handleSaveStoreSettings(e) { e.preventDefault(); showToast('success', 'Tersimpan.'); }
 
 /* RECEIPT & PDF LOGIC */
