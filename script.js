@@ -58,9 +58,19 @@ async function callApi(functionName) {
   if (supabase) {
     try {
       if (functionName === 'loginUser') {
-        const { data, error } = await supabase.from('users').select('*').eq('username', args[0]).eq('password_hash', args[1]).single();
-        if (error || !data) return { success: false, message: 'Username atau password salah!' };
-        return { success: true, user: data, message: 'Login berhasil!' };
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: args[0],
+          password: args[1]
+        });
+        if (error) {
+           console.error("Auth Error:", error);
+           return { success: false, message: 'Email atau password salah!' };
+        }
+        return { 
+           success: true, 
+           user: { user_id: data.user.id, username: data.user.email, full_name: 'Administrator', role: 'admin' }, 
+           message: 'Login berhasil!' 
+        };
       }
       else if (functionName === 'getProducts') {
         const { data, error } = await supabase.from('products').select('*');
