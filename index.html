@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Toko Kita - POS & Inventori</title>
+  
+  <!-- Remix Icons for crisp icons (acceptable since they serve a function) -->
+  <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+  
+  <!-- Chart.js for data visualization -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- html2canvas & jsPDF for receipts -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- Supabase JS Client for Database -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- PWA Manifest -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1769c2">
+
+  <!-- Toko Kita Dashboard Styles -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<script>
+  // Register PWA Service Worker
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW failed', err));
+    });
+  }
+</script>
+
+<div id="app-container">
+
+  <!-- LOGIN OVERLAY -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-header">
+        <div class="logo-icon"><i class="ri-store-2-fill"></i></div>
+        <h2>Toko Kita</h2>
+        <p>Kasir & Inventori</p>
+      </div>
+      <form id="form-login" onsubmit="handleLogin(event)">
+        <div class="form-group" style="text-align: left;">
+          <label>Email akun staf</label>
+          <input type="email" id="login-username" class="form-control" placeholder="Email akun staf" required autocomplete="username">
+        </div>
+        <div class="form-group" style="text-align: left;">
+          <label>Password</label>
+          <input type="password" id="login-password" class="form-control" placeholder="Masukkan password" required autocomplete="current-password">
+        </div>
+        <button type="submit" id="btn-login-submit" class="btn btn-primary btn-block" style="padding: 16px; margin-top: 12px; font-size: 18px;">
+          Masuk Aplikasi
+        </button>
+        <p id="login-config-state" role="status" style="margin-top: 16px; font-size: 13px; text-align: center;"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar" id="sidebar" inert aria-hidden="true">
+    <div class="sidebar-header">
+      <div class="brand-icon"><i class="ri-store-2-fill"></i></div>
+      <div class="brand-info">
+        <h1 id="brand-store-name">Toko Kita</h1>
+        <span>Sistem POS</span>
+      </div>
+      <!-- Mobile close btn -->
+      <button class="btn-icon" style="margin-left:auto; display:none;" id="sidebar-close-btn" onclick="toggleSidebar()"><i class="ri-close-line"></i></button>
+    </div>
+
+    <nav class="sidebar-menu">
+      <button type="button" class="nav-item active" data-view="dashboard" onclick="switchView('dashboard')">
+        <i class="ri-dashboard-fill"></i> Dashboard
+      </button>
+      <button type="button" class="nav-item" data-view="kasir" onclick="switchView('kasir')">
+        <i class="ri-calculator-fill"></i> Kasir
+      </button>
+      <button type="button" class="nav-item" data-view="produk" onclick="switchView('produk')">
+        <i class="ri-box-3-fill"></i> Produk
+      </button>
+      <button type="button" class="nav-item" data-view="kulakan" onclick="switchView('kulakan')">
+        <i class="ri-truck-fill"></i> Pembelian
+      </button>
+      <button type="button" class="nav-item" data-view="stok" onclick="switchView('stok')">
+        <i class="ri-stack-fill"></i> Stok
+      </button>
+      <button type="button" class="nav-item" data-view="pelanggan" onclick="switchView('pelanggan')">
+        <i class="ri-group-fill"></i> Pelanggan
+      </button>
+      <button type="button" class="nav-item" data-view="supplier" onclick="switchView('supplier')">
+        <i class="ri-building-4-fill"></i> Supplier
+      </button>
+      <button type="button" class="nav-item" data-view="piutang" onclick="switchView('piutang')">
+        <i class="ri-book-read-fill"></i> Piutang
+      </button>
+      <button type="button" class="nav-item" data-view="hutang" onclick="switchView('hutang')">
+        <i class="ri-file-list-3-fill"></i> Hutang
+      </button>
+      <button type="button" class="nav-item" data-view="retur" onclick="switchView('retur')">
+        <i class="ri-refund-2-fill"></i> Retur
+      </button>
+      <button type="button" class="nav-item" data-view="laporan" onclick="switchView('laporan')">
+        <i class="ri-bar-chart-box-fill"></i> Laporan
+      </button>
+      <button type="button" class="nav-item" data-view="pengaturan" onclick="switchView('pengaturan')">
+        <i class="ri-settings-4-fill"></i> Pengaturan
+      </button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-profile">
+        <div class="avatar" id="user-avatar-initial">A</div>
+        <div class="user-info">
+          <h4 id="user-display-name">Belum masuk</h4>
+          <p id="user-display-role"></p>
+        </div>
+      </div>
+      <button class="btn-icon" onclick="handleLogout()" title="Keluar"><i class="ri-logout-box-r-line"></i></button>
+    </div>
+  </aside>
+
+  <!-- MAIN WRAPPER -->
+  <main class="main-wrapper" id="main-wrapper" inert aria-hidden="true">
+    
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-toggle" onclick="toggleSidebar()"><i class="ri-menu-line"></i></button>
+        <h2 class="page-title" id="current-page-title">Dashboard</h2>
+      </div>
+      <div class="topbar-right">
+        <div class="date-badge" id="current-date-badge"></div>
+      </div>
+    </header>
+
+    <!-- CONTENT BODY -->
+    <div class="content-body">
+
+      <!-- VIEW: DASHBOARD -->
+      <section id="view-dashboard" class="view-panel active">
+        <!-- MOBILE HERO / QUICK ACTIONS (ONLY VISIBLE ON MOBILE PWA) -->
+        <div class="mobile-app-hero show-on-mobile">
+          <div class="mobile-welcome-card">
+            <div class="mobile-welcome-text">
+              <span class="badge badge-primary">Operasional toko</span>
+              <h3>Selamat datang, <span id="mobile-user-name">Operator</span></h3>
+              <p>Kelola transaksi dan pantau kondisi toko hari ini.</p>
+            </div>
+            <button class="btn btn-primary btn-block" onclick="switchView('kasir')" style="margin-top: 12px; font-size: 16px;">
+              <i class="ri-calculator-line"></i> Buka Kasir Sekarang
+            </button>
+          </div>
+
+        </div>
+
+        <div class="dashboard-welcome hide-on-mobile">
+          <div>
+            <p class="dashboard-welcome-label">Ringkasan toko</p>
+            <h2>Selamat datang, <span id="dashboard-user-name">Operator</span></h2>
+            <p>Pantau penjualan, piutang, dan persediaan dalam satu tempat.</p>
+          </div>
+          <button type="button" class="btn btn-primary" onclick="switchView('kasir')">
+            <i class="ri-calculator-line"></i> Buka kasir
+          </button>
+        </div>
+
+        <div class="period-filter" aria-label="Filter periode dashboard">
+          <div class="period-field">
+            <label for="dashboard-period">Periode penjualan</label>
+            <select id="dashboard-period" class="form-control" onchange="handlePeriodChange('dashboard')">
+              <option value="DAILY">Harian</option>
+              <option value="WEEKLY">Mingguan</option>
+              <option value="MONTHLY">Bulanan</option>
+              <option value="CUSTOM">Custom tanggal</option>
+            </select>
+          </div>
+          <div class="period-custom-fields" id="dashboard-custom-fields" hidden>
+            <div class="period-field">
+              <label for="dashboard-date-from">Dari tanggal</label>
+              <input type="date" id="dashboard-date-from" class="form-control">
+            </div>
+            <div class="period-field">
+              <label for="dashboard-date-to">Sampai tanggal</label>
+              <input type="date" id="dashboard-date-to" class="form-control">
+            </div>
+            <button type="button" class="btn btn-secondary" onclick="applyPeriodFilter('dashboard')">Terapkan</button>
+          </div>
+          <p id="dashboard-period-summary" class="period-summary" role="status" aria-live="polite"></p>
+        </div>
+
+        <div id="dashboard-load-state" class="dashboard-load-state" role="status" aria-live="polite" hidden></div>
+
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon emerald"><i class="ri-money-dollar-circle-fill"></i></div>
+            <div class="stat-details">
+              <span id="dashboard-period-sales-label">Penjualan hari ini</span>
+              <h2 id="dash-sales-today">Rp 0</h2>
+              <p id="dash-period-note">Dalam periode yang dipilih</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon indigo"><i class="ri-calendar-check-fill"></i></div>
+            <div class="stat-details">
+              <span>Jumlah transaksi</span>
+              <h2 id="dash-count-today">0</h2>
+              <p>dalam periode yang dipilih</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon amber"><i class="ri-wallet-3-fill"></i></div>
+            <div class="stat-details">
+              <span>Total Piutang</span>
+              <h2 id="dash-total-piutang">Rp 0</h2>
+              <p>Belum lunas</p>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon rose"><i class="ri-alert-fill"></i></div>
+            <div class="stat-details">
+              <span>Stok Menipis</span>
+              <h2 id="dash-low-stock-count">0 produk</h2>
+              <p>Perlu restock</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid mb-4 hide-on-mobile">
+          <div class="glass-card">
+            <div class="card-header">
+              <h3 id="chart-sales-title">Penjualan per jam</h3>
+            </div>
+            <div style="height: 280px; position: relative;">
+              <canvas id="chart-sales-7days"></canvas>
+            </div>
+          </div>
+
+          <div class="glass-card yellow-card">
+            <div class="card-header">
+              <h3>Metode Pembayaran</h3>
+            </div>
+            <div style="height: 280px; position: relative;">
+              <canvas id="chart-payment-dist"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="dashboard-grid-equal hide-on-mobile">
+          <div class="glass-card blue-card">
+            <div class="card-header">
+              <h3>Produk Paling Laku</h3>
+            </div>
+            <div id="dash-top-products-list"></div>
+          </div>
+
+          <div class="glass-card">
+            <div class="card-header">
+              <h3>Peringatan Stok Menipis</h3>
+              <button class="btn btn-primary btn-sm" onclick="switchView('stok')">Lihat Semua</button>
+            </div>
+            <div id="dash-low-stock-list"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: KASIR (POS) -->
+      <section id="view-kasir" class="view-panel">
+        <!-- MOBILE POS FLOATING CART TRIGGER BAR (PWA) -->
+        <div class="mobile-cart-float-bar show-on-mobile" id="mobile-cart-float-bar" onclick="openModal('modal-mobile-cart')" style="display:none;">
+          <div class="flex items-center gap-2">
+            <span class="badge badge-primary" style="font-size:13px; padding: 6px 10px;"><i class="ri-shopping-cart-2-fill"></i> <span id="mob-cart-badge-count">0</span> Item</span>
+            <span style="font-size: 16px; font-weight: 900; color: #000;" id="mob-cart-badge-total">Rp 0</span>
+          </div>
+          <button class="btn btn-primary btn-sm mobile-cart-checkout">
+            BAYAR SEKARANG <i class="ri-arrow-right-line"></i>
+          </button>
+        </div>
+
+        <div class="pos-container">
+          <!-- LEFT: PRODUCTS LIST -->
+          <div>
+            <div class="glass-card" style="padding: 16px; margin-bottom: 20px;">
+              <div class="flex gap-4 mb-4">
+                <input type="text" id="pos-search" class="form-control" placeholder="Cari produk..." oninput="filterPosProducts()" style="flex:1;">
+              </div>
+              <div id="pos-category-pills" style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 8px;">
+                <button class="btn btn-primary btn-sm active" onclick="filterPosCategory('ALL', this)">Semua</button>
+              </div>
+            </div>
+            <div class="product-grid" id="pos-product-grid"></div>
+          </div>
+
+          <!-- RIGHT: TRANSACTION CART -->
+          <div class="cart-panel">
+            <div style="border-bottom: var(--border-width) solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center;">
+              <h3 style="font-family: var(--font-heading); font-size: 20px; font-weight: 800; margin:0;">Keranjang Kasir</h3>
+              <button class="btn btn-danger btn-sm" onclick="clearPosCart()" title="Kosongkan Keranjang"><i class="ri-delete-bin-line"></i> Kosongkan</button>
+            </div>
+            <div class="form-group">
+              <label>Pelanggan</label>
+              <select id="pos-customer-select" class="form-control" aria-label="Pilih pelanggan tersimpan" onchange="selectPosCustomer(this.value)" style="margin-bottom:8px;">
+                <option value="">Pilih pelanggan tersimpan</option>
+              </select>
+              <input type="text" id="pos-customer-name" class="form-control" list="pos-customer-options" value="Pelanggan Umum" placeholder="Atau ketik nama pelanggan baru" autocomplete="off" required oninput="syncCustomerInput(this.value)">
+              <input type="tel" id="pos-customer-phone" class="form-control" style="margin-top:8px;" placeholder="Nomor telepon (opsional)" oninput="syncCustomerPhone(this.value)">
+              <small id="pos-customer-balance-info" style="display:block; margin-top:6px;"></small>
+            </div>
+            
+            <div class="cart-items-list" id="pos-cart-list">
+              <div style="text-align: center; color: var(--text-dim); padding: 40px 0; font-weight: 600;">
+                Keranjang masih kosong
+              </div>
+            </div>
+
+            <div style="background: var(--bg-main); padding: 16px; border: 2px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 16px;">
+              <div class="flex" style="justify-content: space-between; margin-bottom: 8px; font-weight: 600;">
+                <span>Subtotal</span>
+                <span id="pos-subtotal-text">Rp 0</span>
+              </div>
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label>Diskon (Rp)</label>
+                <input type="number" id="pos-discount-total" class="form-control" value="0" oninput="syncDiscountInput(this.value); calculatePosTotal();">
+              </div>
+              <div class="flex" style="justify-content: space-between; font-size: 20px; font-weight: 900; border-top: 2px solid var(--border-color); padding-top: 12px;">
+                <span>Total belanja</span>
+                <span id="pos-total-before-balance-text">Rp 0</span>
+              </div>
+              <div class="flex" style="justify-content: space-between; margin-bottom: 8px; font-weight: 600;">
+                <span>Saldo dipakai</span>
+                <span id="pos-balance-used-text">Rp 0</span>
+              </div>
+              <div class="flex" style="justify-content: space-between; font-size: 20px; font-weight: 900; border-top: 2px solid var(--border-color); padding-top: 12px;">
+                <span>Sisa dibayar</span>
+                <span id="pos-grand-total-text" style="color: var(--danger);">Rp 0</span>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label>Metode Pembayaran</label>
+              <select id="pos-payment-method" class="form-control" onchange="syncPaymentMethodSelect(this.value); togglePosPaymentMethod();">
+                <option value="CASH">Tunai</option>
+                <option value="CREDIT">Hutang/Piutang</option>
+                <option value="TRANSFER">Transfer</option>
+                <option value="QRIS">QRIS</option>
+              </select>
+            </div>
+
+            <div id="pos-cash-container">
+              <div class="form-group" style="margin-bottom: 6px;">
+                <label>Uang Diterima (Rp)</label>
+                <input type="number" id="pos-cash-received" class="form-control" placeholder="0" oninput="syncCashInput(this.value); calculatePosTotal();">
+              </div>
+              <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash('pas')">Pas</button>
+                <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash(10000)">10rb</button>
+                <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash(20000)">20rb</button>
+                <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash(50000)">50rb</button>
+                <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash(100000)">100rb</button>
+              </div>
+              <div class="flex" style="justify-content: space-between; font-weight: 800; font-size: 16px; margin-bottom: 16px;">
+                <span>Kembalian:</span>
+                <span id="pos-cash-change-text" style="color: #000000; font-weight: 900;">Rp 0</span>
+              </div>
+              <div class="flex" style="justify-content: space-between; font-weight: 700; margin-bottom: 8px;">
+                <span>Cicilan piutang</span>
+                <span id="pos-change-to-debt-text">Rp 0</span>
+              </div>
+              <div class="flex" style="justify-content: space-between; font-weight: 700; margin-bottom: 8px;">
+                <span>Saldo pelanggan</span>
+                <span id="pos-change-to-balance-text">Rp 0</span>
+              </div>
+              <label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:16px; font-size:13px;">
+                <input type="checkbox" id="pos-retain-change" onchange="syncRetainChange(this.checked); calculatePosTotal();" style="margin-top:3px;">
+                <span>Simpan kembalian sebagai cicilan piutang atau saldo pelanggan</span>
+              </label>
+            </div>
+
+            <button class="btn btn-primary btn-block" style="padding: 16px; font-size: 18px;" onclick="submitPosSale()">
+              Proses Transaksi
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: MASTER PRODUK -->
+      <section id="view-produk" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>Master Data Produk</h3>
+            <div class="flex gap-2">
+              <button class="btn btn-secondary btn-sm" onclick="openCategoryModal()">Kategori</button>
+              <button class="btn btn-secondary btn-sm" onclick="openUnitModal()">Satuan</button>
+              <button class="btn btn-primary" onclick="openProductModal()">Tambah Produk</button>
+            </div>
+          </div>
+          <div class="flex gap-4 mb-4">
+            <input type="text" id="produk-search" class="form-control" placeholder="Cari produk..." oninput="renderProductTable()" style="max-width: 320px;">
+            <select id="produk-filter-cat" class="form-control" onchange="renderProductTable()" style="max-width: 200px;"></select>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Nama Produk</th>
+                  <th>Kategori</th>
+                  <th>Beli</th>
+                  <th>Jual</th>
+                  <th>Stok</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="table-products-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Minimal implementations for other views so JS logic won't crash -->
+      <!-- VIEW: KULAKAN -->
+      <section id="view-kulakan" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>Pembelian Supplier</h3>
+            <button class="btn btn-primary" onclick="openPurchaseModal()">Tambah Pembelian</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead><tr><th>No PO</th><th>Supplier</th><th>Barang</th><th>Total</th><th>Cara Bayar</th><th>Status Bayar</th><th>Aksi</th></tr></thead>
+              <tbody id="table-purchases-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      
+      <!-- VIEW: STOK -->
+      <section id="view-stok" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>Kelola Stok</h3>
+            <button class="btn btn-primary" onclick="openStockAdjustmentModal()">Penyesuaian Stok</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead><tr><th>Waktu</th><th>Produk</th><th>Tipe</th><th>Masuk</th><th>Keluar</th><th>Keterangan</th></tr></thead>
+              <tbody id="table-stock-movements-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: PELANGGAN -->
+      <section id="view-pelanggan" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>Pelanggan</h3>
+            <button class="btn btn-primary" onclick="openCustomerModal()">Tambah Pelanggan</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead><tr><th>ID</th><th>Nama Pelanggan</th><th>No HP</th><th>Piutang</th><th>Saldo</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody id="table-customers-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: SUPPLIER -->
+      <section id="view-supplier" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>Supplier</h3>
+            <button class="btn btn-primary" onclick="openSupplierModal()">Tambah Supplier</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead><tr><th>ID</th><th>Nama Supplier</th><th>No HP</th><th>Hutang</th><th>Status</th><th>Aksi</th></tr></thead>
+              <tbody id="table-suppliers-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- VIEW: PIUTANG -->
+      <section id="view-piutang" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header"><h3>Piutang Pelanggan</h3></div>
+          <div class="table-responsive"><table class="table"><tbody id="table-piutang-body"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- VIEW: HUTANG -->
+      <section id="view-hutang" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header"><h3>Hutang Supplier</h3></div>
+          <div class="table-responsive"><table class="table"><tbody id="table-hutang-body"></tbody></table></div>
+        </div>
+      </section>
+      
+      <!-- VIEW: RETUR -->
+      <section id="view-retur" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header"><h3>Retur Transaksi</h3><button class="btn btn-primary" onclick="openReturnModal()">Buat Retur</button></div>
+          <div class="table-responsive"><table class="table"><tbody id="table-returns-body"></tbody></table></div>
+        </div>
+      </section>
+
+      <!-- VIEW: LAPORAN -->
+      <section id="view-laporan" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3>Laporan Keseluruhan</h3>
+            <button class="btn btn-success" onclick="downloadAllReportsPDF(true)"><i class="ri-file-pdf-fill"></i> Unduh Laporan Periode Ini (PDF)</button>
+          </div>
+          <div class="report-filters mb-4">
+            <div class="period-field">
+              <label for="reports-period">Periode laporan</label>
+              <select id="reports-period" class="form-control" onchange="handlePeriodChange('reports')">
+                <option value="DAILY">Harian</option>
+                <option value="WEEKLY">Mingguan</option>
+                <option value="MONTHLY">Bulanan</option>
+                <option value="CUSTOM">Custom tanggal</option>
+              </select>
+            </div>
+            <div class="period-custom-fields" id="reports-custom-fields" hidden>
+              <div class="period-field">
+                <label for="reports-date-from">Dari tanggal</label>
+                <input type="date" id="reports-date-from" class="form-control">
+              </div>
+              <div class="period-field">
+                <label for="reports-date-to">Sampai tanggal</label>
+                <input type="date" id="reports-date-to" class="form-control">
+              </div>
+            </div>
+            <div class="period-field">
+              <label for="lap-type">Jenis aktivitas</label>
+              <select id="lap-type" class="form-control">
+                <option value="ALL">Semua Aktivitas</option>
+                <option value="PENJUALAN">Penjualan Saja</option>
+              </select>
+            </div>
+            <button type="button" class="btn btn-primary" onclick="applyPeriodFilter('reports')">Tampilkan laporan</button>
+          </div>
+          <p id="reports-period-summary" class="period-summary" role="status" aria-live="polite"></p>
+          <div id="laporan-table-container" role="status" aria-live="polite">Laporan tampil setelah data toko dimuat.</div>
+        </div>
+      </section>
+
+      <!-- VIEW: PENGATURAN -->
+      <section id="view-pengaturan" class="view-panel">
+        <div class="glass-card">
+          <div class="card-header">
+            <h3><i class="ri-settings-4-fill"></i> Pengaturan Toko & POS</h3>
+            <span class="badge badge-primary">Versi 2.5 Neo</span>
+          </div>
+          <form id="form-settings-store" onsubmit="handleSaveStoreSettings(event)">
+            <div class="dashboard-grid-equal" style="margin-bottom: 20px;">
+              <!-- Card 1: Identitas Toko -->
+              <div style="background: #fff; padding: 18px; border: 2px solid #000; border-radius: 12px; box-shadow: 3px 3px 0 #000;">
+                <h4 style="font-size: 16px; font-weight: 800; margin-bottom: 14px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                  <i class="ri-store-2-line" style="color: var(--primary);"></i> Identitas & Struk Toko
+                </h4>
+                <div class="form-group">
+                  <label>Nama Toko</label>
+                  <input type="text" id="set-store-name" class="form-control" placeholder="Nama Toko Anda" required>
+                </div>
+                <div class="form-group">
+                  <label>Alamat Toko</label>
+                  <input type="text" id="set-store-address" class="form-control" placeholder="Alamat Lengkap Toko">
+                </div>
+                <div class="form-group">
+                  <label>No. HP / Telepon Toko</label>
+                  <input type="text" id="set-store-phone" class="form-control" placeholder="08xxxxxxxxxx">
+                </div>
+                <div class="form-group">
+                  <label>Pesan Footer Struk</label>
+                  <input type="text" id="set-invoice-footer" class="form-control" placeholder="Terima kasih telah berbelanja!">
+                </div>
+              </div>
+
+              <!-- Card 2: Database Supabase -->
+              <div style="background: #fff; padding: 18px; border: 2px solid #000; border-radius: 12px; box-shadow: 3px 3px 0 #000;">
+                <h4 style="font-size: 16px; font-weight: 800; margin-bottom: 14px; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                  <i class="ri-database-2-line" style="color: var(--secondary);"></i> Database Supabase
+                </h4>
+                <div style="margin-top: 10px; display: flex; align-items: center; gap: 10px;">
+                  <button type="button" class="btn btn-secondary btn-sm" onclick="runTestSupabase()"><i class="ri-refresh-line"></i> Uji Koneksi Supabase</button>
+                  <span id="set-db-status-badge" class="badge badge-warning">Belum diuji</span>
+                </div>
+                <small>URL dan anon key publik dikonfigurasi melalui config.js. Jangan masukkan service_role ke browser.</small>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 12px;">
+              <button type="submit" class="btn btn-primary" style="padding: 14px 28px; font-size: 16px;">
+                <i class="ri-save-3-line"></i> Simpan Semua Pengaturan
+              </button>
+            </div>
+          </form>
+
+          <div id="store-reset-section" style="display:none; margin-top: 28px; padding: 18px; border: 2px solid var(--danger); border-radius: 12px; background: #fff;">
+            <h4 style="margin-bottom: 8px; color: var(--danger);"><i class="ri-error-warning-line"></i> Reset Data Toko</h4>
+            <p style="margin-bottom: 14px;">Hapus seluruh data master dan riwayat operasional toko. Akun admin dan pengaturan toko tidak akan dihapus.</p>
+            <button type="button" class="btn btn-danger" style="color:#fff;" onclick="openStoreResetModal()">
+              <i class="ri-delete-bin-line"></i> Reset Semua Data Toko
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<!-- COMMON MODALS (Kept minimal but functional) -->
+<div class="modal-overlay" id="modal-reset-store-data" role="dialog" aria-modal="true" aria-labelledby="modal-reset-store-title" aria-describedby="modal-reset-store-description">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-reset-store-title">Konfirmasi Reset Data</h3>
+      <button type="button" class="btn-icon" id="btn-close-store-reset" onclick="closeModal('modal-reset-store-data')" aria-label="Tutup konfirmasi reset">
+        <i class="ri-close-line"></i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p id="modal-reset-store-description">Tindakan ini permanen dan tidak dapat dibatalkan. Semua produk, kategori, satuan, pelanggan, supplier, stok, penjualan, pembelian, pembayaran, retur, dan riwayat lainnya akan dihapus.</p>
+      <p style="margin-top: 12px;"><strong>Akun admin dan konfigurasi toko akan tetap tersimpan.</strong></p>
+      <p id="store-reset-status" role="status" aria-live="polite" style="margin-top: 12px;"></p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-secondary" id="btn-cancel-store-reset" onclick="closeModal('modal-reset-store-data')">Tidak, batal</button>
+      <button type="button" class="btn btn-danger" id="btn-confirm-store-reset" style="color:#fff;" onclick="confirmStoreDataReset()">
+        <i class="ri-delete-bin-line"></i> Ya, reset semua data
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DYNAMIC CRUD MODAL -->
+<div class="modal-overlay" id="modal-dynamic">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-dynamic-title">Form</h3>
+      <button class="btn-icon" onclick="closeModal('modal-dynamic')"><i class="ri-close-line"></i></button>
+    </div>
+    <form id="form-dynamic" onsubmit="handleDynamicSave(event)">
+      <div class="modal-body" id="modal-dynamic-body">
+        <!-- Fields injected by JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="submit" class="btn btn-primary" id="btn-dynamic-submit">Simpan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- INVOICE / RECEIPT MODAL -->
+<div class="modal-overlay" id="modal-invoice">
+  <div class="modal-box receipt-modal">
+    <div class="modal-header">
+      <h3>Struk Transaksi</h3>
+      <button class="btn-icon" onclick="closeModal('modal-invoice')"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="modal-body receipt-preview-area" id="receipt-preview-area">
+      <div class="receipt-paper"></div>
+    </div>
+    <div class="modal-footer receipt-actions">
+      <button class="btn btn-primary" onclick="downloadReceiptPDF()">
+        <i class="ri-file-pdf-fill"></i> Unduh PDF
+      </button>
+      <button class="btn btn-success" onclick="sendReceiptWhatsapp()">
+        <i class="ri-whatsapp-line"></i> WhatsApp
+      </button>
+      <button class="btn btn-warning" onclick="downloadReceiptImage()">
+        <i class="ri-image-line"></i> Gambar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE MENU BOTTOM SHEET MODAL (PWA) -->
+<div class="modal-overlay" id="modal-mobile-menu">
+  <div class="modal-box mobile-bottom-sheet">
+    <div class="modal-header">
+      <h3><i class="ri-grid-fill"></i> Menu Aplikasi Toko</h3>
+      <button class="btn-icon" onclick="closeModal('modal-mobile-menu')"><i class="ri-close-line"></i></button>
+    </div>
+    <div class="modal-body" style="padding: 16px;">
+      <div class="mobile-sheet-grid">
+        <button class="sheet-item" onclick="switchView('kulakan'); closeModal('modal-mobile-menu');">
+          <div class="sheet-icon yellow"><i class="ri-truck-fill"></i></div>
+          <span>Pembelian</span>
+        </button>
+        <button class="sheet-item" onclick="switchView('stok'); closeModal('modal-mobile-menu');">
+          <div class="sheet-icon blue"><i class="ri-stack-fill"></i></div>
+          <span>Stok Barang</span>
+        </button>
+        <button class="sheet-item" onclick="switchView('pelanggan'); closeModal('modal-mobile-menu');">
+          <div class="sheet-icon green"><i class="ri-group-fill"></i></div>
+          <span>Pelanggan</span>
+        </button>
+        <button class="sheet-item" onclick="switchView('supplier'); closeModal('modal-mobile-menu');">
+          <div class="sheet-icon orange"><i class="ri-building-4-fill"></i></div>
+          <span>Supplier</span>
+        </button>
+        <button class="sheet-item" onclick="switchView('piutang'); closeModal('modal-mobile-menu');">
+          <div class="sheet-icon yellow"><i class="ri-book-read-fill"></i></div>
+          <span>Piutang</span>
+        </button>
+        <button class="sheet-item" onclick="switchView('hutang'); closeModal('modal-mobile-menu');">
+          <div class="sheet-icon red"><i class="ri-file-list-3-fill"></i></div>
+          <span>Hutang</span>
+        </button>
+        <button class="sheet-item" onclick="switchView('retur'); closeModal('modal-mobile-menu');">
+          <div class="sheet-icon blue"><i class="ri-refund-2-fill"></i></div>
+          <span>Retur</span>
+        </button>
+        <button class="sheet-item" onclick="switchView('pengaturan'); closeModal('modal-mobile-menu');">
+          <div class="sheet-icon green"><i class="ri-settings-4-fill"></i></div>
+          <span>Pengaturan</span>
+        </button>
+      </div>
+
+      <div style="margin-top: 20px; border-top: 2px solid var(--border-color); padding-top: 16px;">
+        <button class="btn btn-danger btn-block" onclick="handleLogout(); closeModal('modal-mobile-menu');">
+          <i class="ri-logout-box-r-line"></i> Keluar Dari Akun
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MOBILE CART POP-UP BOTTOM SHEET MODAL (PWA) -->
+<div class="modal-overlay" id="modal-mobile-cart" role="dialog" aria-modal="true" aria-labelledby="modal-mobile-cart-title">
+  <div class="modal-box mobile-bottom-sheet">
+    <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <h3 id="modal-mobile-cart-title"><i class="ri-shopping-cart-2-fill"></i> Keranjang (<span id="mob-cart-item-count">0</span>)</h3>
+      <div style="display:flex; gap: 8px; align-items: center;">
+        <button class="btn btn-danger btn-sm" onclick="clearPosCart()" style="font-size:12px; padding: 4px 8px;"><i class="ri-delete-bin-line"></i> Kosongkan</button>
+        <button class="btn-icon" onclick="closeModal('modal-mobile-cart')" aria-label="Tutup keranjang"><i class="ri-close-line"></i></button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding: 16px;">
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="font-size:12px; margin-bottom: 4px;">Pelanggan</label>
+        <select id="pos-customer-select-mobile" class="form-control" aria-label="Pilih pelanggan tersimpan" onchange="selectPosCustomer(this.value)" style="margin-bottom:8px;">
+          <option value="">Pilih pelanggan tersimpan</option>
+        </select>
+        <input type="text" id="pos-customer-name-mobile" class="form-control" list="pos-customer-options" value="Pelanggan Umum" placeholder="Atau ketik nama pelanggan baru" autocomplete="off" required oninput="syncCustomerInput(this.value)">
+        <input type="tel" id="pos-customer-phone-mobile" class="form-control" style="margin-top:8px;" placeholder="Nomor telepon (opsional)" oninput="syncCustomerPhone(this.value)">
+        <small id="pos-customer-balance-info-mobile" style="display:block; margin-top:6px;"></small>
+      </div>
+
+      <div class="cart-items-list" id="pos-cart-list-mobile" style="max-height: 220px; overflow-y: auto; margin-bottom: 16px; border: 2px solid var(--border-color); border-radius: var(--radius-md); padding: 10px;">
+        <div style="text-align: center; color: var(--text-dim); padding: 30px 0; font-weight: 600;">
+          Keranjang masih kosong
+        </div>
+      </div>
+
+      <div style="background: var(--bg-main); padding: 14px; border: 2px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: 14px;">
+        <div class="flex" style="justify-content: space-between; margin-bottom: 6px; font-weight: 600;">
+          <span>Subtotal</span>
+          <span id="pos-subtotal-text-mobile">Rp 0</span>
+        </div>
+        <div class="form-group" style="margin-bottom: 10px;">
+          <label style="font-size:12px; margin-bottom: 4px;">Diskon (Rp)</label>
+          <input type="number" id="pos-discount-total-mobile" class="form-control" value="0" oninput="syncDiscountInput(this.value); calculatePosTotal();">
+        </div>
+        <div class="flex" style="justify-content: space-between; font-size: 18px; font-weight: 900; border-top: 2px solid var(--border-color); padding-top: 8px;">
+          <span>Total belanja</span>
+          <span id="pos-total-before-balance-text-mobile">Rp 0</span>
+        </div>
+        <div class="flex" style="justify-content: space-between; margin-bottom: 6px; font-weight: 600;">
+          <span>Saldo dipakai</span>
+          <span id="pos-balance-used-text-mobile">Rp 0</span>
+        </div>
+        <div class="flex" style="justify-content: space-between; font-size: 18px; font-weight: 900; border-top: 2px solid var(--border-color); padding-top: 8px;">
+          <span>Sisa dibayar</span>
+          <span id="pos-grand-total-text-mobile" style="color: var(--danger);">Rp 0</span>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom: 12px;">
+        <label style="font-size:13px; margin-bottom: 4px;">Metode Pembayaran</label>
+        <select id="pos-payment-method-mobile" class="form-control" onchange="syncPaymentMethodSelect(this.value); togglePosPaymentMethod();">
+          <option value="CASH">Tunai</option>
+          <option value="CREDIT">Hutang/Piutang</option>
+          <option value="TRANSFER">Transfer</option>
+          <option value="QRIS">QRIS</option>
+        </select>
+      </div>
+
+      <div id="pos-cash-container-mobile">
+        <div class="form-group" style="margin-bottom: 6px;">
+          <label style="font-size:13px; margin-bottom: 4px;">Uang Diterima (Rp)</label>
+          <input type="number" id="pos-cash-received-mobile" class="form-control" placeholder="0" oninput="syncCashInput(this.value); calculatePosTotal();">
+        </div>
+        <div style="display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap;">
+          <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash('pas')">Pas</button>
+          <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash(10000)">10rb</button>
+          <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash(20000)">20rb</button>
+          <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash(50000)">50rb</button>
+          <button type="button" class="btn btn-secondary btn-sm" style="flex: 1; min-width: 50px; font-size: 11px; padding: 4px;" onclick="setQuickCash(100000)">100rb</button>
+        </div>
+        <div class="flex" style="justify-content: space-between; font-weight: 800; font-size: 15px; margin-bottom: 14px;">
+          <span>Kembalian:</span>
+          <span id="pos-cash-change-text-mobile" style="color: #000; font-weight: 900;">Rp 0</span>
+        </div>
+        <div class="flex" style="justify-content: space-between; font-weight: 700; margin-bottom: 8px;">
+          <span>Cicilan piutang</span>
+          <span id="pos-change-to-debt-text-mobile">Rp 0</span>
+        </div>
+        <div class="flex" style="justify-content: space-between; font-weight: 700; margin-bottom: 8px;">
+          <span>Saldo pelanggan</span>
+          <span id="pos-change-to-balance-text-mobile">Rp 0</span>
+        </div>
+        <label style="display:flex; align-items:flex-start; gap:8px; margin-bottom:14px; font-size:13px;">
+          <input type="checkbox" id="pos-retain-change-mobile" onchange="syncRetainChange(this.checked); calculatePosTotal();" style="margin-top:3px;">
+          <span>Simpan kembalian sebagai cicilan piutang atau saldo pelanggan</span>
+        </label>
+      </div>
+
+      <button class="btn btn-primary btn-block" style="padding: 16px; font-size: 18px;" onclick="submitPosSale()">
+        PROSES TRANSAKSI
+      </button>
+    </div>
+  </div>
+</div>
+
+<datalist id="pos-customer-options"></datalist>
+
+<!-- FIXED MOBILE BOTTOM NAVIGATION BAR (PWA) -->
+<nav class="mobile-bottom-nav" id="mobile-bottom-nav">
+  <button class="mobile-tab active" data-view="dashboard" onclick="switchView('dashboard')">
+    <i class="ri-dashboard-fill"></i>
+    <span>Home</span>
+  </button>
+  <button class="mobile-tab" data-view="kasir" onclick="switchView('kasir')">
+    <i class="ri-calculator-fill"></i>
+    <span>Kasir</span>
+  </button>
+  <button class="mobile-tab" data-view="produk" onclick="switchView('produk')">
+    <i class="ri-box-3-fill"></i>
+    <span>Produk</span>
+  </button>
+  <button class="mobile-tab" data-view="laporan" onclick="switchView('laporan')">
+    <i class="ri-bar-chart-box-fill"></i>
+    <span>Laporan</span>
+  </button>
+  <button class="mobile-tab" onclick="openModal('modal-mobile-menu')">
+    <i class="ri-grid-fill"></i>
+    <span>Menu</span>
+  </button>
+</nav>
+
+<div id="toast-container"></div>
+
+<script src="config.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
