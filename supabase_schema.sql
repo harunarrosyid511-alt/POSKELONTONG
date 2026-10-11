@@ -765,19 +765,19 @@ begin
         raise exception 'Hanya admin aktif yang dapat mereset data toko.';
     end if;
 
-    delete from public.return_items;
-    delete from public.returns;
-    delete from public.payments;
-    delete from public.stock_movements;
-    delete from public.purchase_items;
-    delete from public.sales_items;
-    delete from public.purchases;
-    delete from public.sales;
-    delete from public.customers;
-    delete from public.suppliers;
-    delete from public.products;
-    delete from public.categories;
-    delete from public.units;
+    delete from public.return_items where true;
+    delete from public.returns where true;
+    delete from public.payments where true;
+    delete from public.stock_movements where true;
+    delete from public.purchase_items where true;
+    delete from public.sales_items where true;
+    delete from public.purchases where true;
+    delete from public.sales where true;
+    delete from public.customers where true;
+    delete from public.suppliers where true;
+    delete from public.products where true;
+    delete from public.categories where true;
+    delete from public.units where true;
 
     return jsonb_build_object('success', true);
 end;
